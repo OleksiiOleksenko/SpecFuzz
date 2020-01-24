@@ -1,0 +1,1 @@
+This directory contains patches for tools that require tweaking to be used with SpecFuzz.
