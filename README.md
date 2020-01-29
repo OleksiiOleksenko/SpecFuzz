@@ -8,7 +8,7 @@ A tool to enable fuzzing for Spectre vulnerabilities
 * Cmake: [Install CMake](https://cmake.org/install/)
 * LLVM 7.0.1., built from sources:
 ```bash
-$ INSTALL_DIR=/llvm/installation/directory/ ./scripts/llvm.sh
+$ INSTALL_DIR=/llvm/installation/directory/ ./install/llvm.sh
 $ /llvm/installation/directory/clang -v
 clang version 7.0.1 (tags/RELEASE_701/final)
 ...

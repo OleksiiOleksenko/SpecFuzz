@@ -7,10 +7,6 @@ msg () {
     echo "[BATS] " $*
 }
 
-setupOnce () {
-    echo "start"
-}
-
 setup () {
     make clean
 }
@@ -20,246 +16,102 @@ teardown() {
 }
 
 
-@test "[$BATS_TEST_NUMBER] RTL: Checkpointing function does not introduce corruptions" {
+@test "[$BATS_TEST_NUMBER] Acceptance: The pass is enabled and compiles correctly" {
+    NAME=dummy
+    CC=clang-sf make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [ "$output" = "[SF] Starting
+Hello World!" ]
+}
+
+@test "[$BATS_TEST_NUMBER] Acceptance: Detection of a speculative overflow with ASan" {
+    NAME=acceptance-basic
+    CC=clang-sf make ${NAME}
+    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./${NAME} 100"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[SF], 1,"* ]]
+}
+
+@test "[$BATS_TEST_NUMBER] Acceptance: Detection of a speculative overflow with signal handler" {
+    NAME=acceptance-basic
+    CC=clang-sf make ${NAME}
+    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./${NAME} 1000000000"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"[SF], 11,"* ]]
+}
+
+@test "[$BATS_TEST_NUMBER] Acceptance: mmul" {
+    NAME=acceptance-mmul
+
+    make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+
+    CC=clang-sf make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+
+    CC=clang-sf CFLAGS="-O1" make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+
+    CC=clang-sf CFLAGS="-O2" make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+
+    CC=clang-sf CFLAGS="-O3" make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+}
+
+@test "[$BATS_TEST_NUMBER] Runtime: Checkpointing function does not introduce corruptions" {
     NAME=rtl_chkp
     make ${NAME}
     run bash -c "./${NAME}"
     [ "$status" -eq 0 ]
-    rm ${NAME}
 }
 
-@test "[$BATS_TEST_NUMBER] RTL: Rollback functions correctly" {
+@test "[$BATS_TEST_NUMBER] Runtime: Rollback functions correctly" {
     NAME=rtl_chkp_rlbk
     make ${NAME}
     run bash -c "./${NAME}"
     [ "$status" -eq 0 ]
-    rm ${NAME}
+}
+
+@test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script" {
+    NAME=acceptance-mmul
+    CC=clang-sf CFLAGS=" --disable-asan -O3 -ggdb" make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+}
+
+@test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a c++ wrapper script" {
+    NAME=acceptance-mmul
+    CC=clang-sf++ CFLAGS=" --disable-asan -O3 -ggdb" make ${NAME}
+    run bash -c "./${NAME}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"70" ]]
+}
+
+@test "[$BATS_TEST_NUMBER] Pass: Collecting functions" {
+    NAME=dummy
+    CC=clang-sf CFLAGS=" --collect list.txt --disable-asan -O3 -ggdb" make ${NAME}
+    uniq list.txt | sort > t && mv t list.txt
+    run cat list.txt
+    [ "$output" == "main" ]
+    rm list.txt
 }
 
 
 # Below are our old tests. They probably won't work anymore
 
-#@test "[$BATS_TEST_NUMBER] The pass is enabled and compiles correctly" {
-#    make dummy.bc
-#    run bash -c "$CLANG_DIR/llc dummy.bc -x86-specfuzz -debug-only=x86-specfuzz -o dummy.s"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"SpecFuzz"* ]]
-#
-#    $CLANG_DIR/clang dummy.s -o dummy -lspecfuzz
-#    run ./dummy
-#    [ "$status" -eq 0 ]
-#    [ "$output" = "[SF] Starting
-#Hello World!" ]
-#    rm dummy
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Instruction counter is constantly incremented" {
-#    NAME="instruction_counter"
-#    make ${NAME}.s
-#    run bash -c "$CLANG_DIR/FileCheck ${NAME}.ll --input-file=${NAME}.s"
-#    [ "$status" -eq 0 ]
-#
-#    make ${NAME}
-#    run bash -c "./${NAME}"
-#    [ "$output" = "[SF] Starting
-#Counter: -8" ]
-#    rm ${NAME}
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Instrumentation of simple comparisons" {
-#    NAME="comparison"
-#    make ${NAME}.s
-#    run bash -c "$CLANG_DIR/FileCheck ${NAME}.ll --input-file=${NAME}.s"
-#    [ "$status" -eq 0 ]
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Instrumentation of function calls" {
-#    NAME="call"
-#    make ${NAME}.s
-#    run bash -c "$CLANG_DIR/FileCheck ${NAME}.ll --input-file=${NAME}.s"
-#    [ "$status" -eq 0 ]
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Instrumentation of writes" {
-#    NAME="memory_write"
-#    make ${NAME}.s
-#    run bash -c "$CLANG_DIR/FileCheck ${NAME}.ll --input-file=${NAME}.s"
-#    [ "$status" -eq 0 ]
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Instrumentation of inline assembly" {
-#    NAME="inline-asm-write"
-#    make ${NAME}.s
-#    run bash -c "$CLANG_DIR/FileCheck ${NAME}.c --input-file=${NAME}.s"
-#    [ "$status" -eq 0 ]
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Simulation traverses both branches and correctly rolls back the state" {
-#    make -B comparison
-#    run bash -c "gdb --batch --command=comparison.gdb ./comparison > gdb.log"
-#    run bash -c "$CLANG_DIR/FileCheck comparison.gdb --input-file=gdb.log"
-#    [ "$status" -eq 0 ]
-#    rm gdb.log
-#    rm comparison
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Rollback of EFLAGS" {
-#    make -B comparison
-#    run bash -c "gdb --batch --command=eflags.gdb ./comparison > gdb.log"
-#    run bash -c "$CLANG_DIR/FileCheck eflags.gdb --input-file=gdb.log"
-#    [ "$status" -eq 0 ]
-#    rm gdb.log
-#    rm comparison
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Detection of a speculative overflow with ASan" {
-#    make acceptance_simple_speculative_overflow ENABLE_ASAN=1 -B
-#    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./acceptance_simple_speculative_overflow 100"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"[SF], 1,"* ]]
-#    rm acceptance_simple_speculative_overflow
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Detection of a speculative overflow with signal handler" {
-#    make acceptance_simple_speculative_overflow ENABLE_ASAN=1 -B
-#    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./acceptance_simple_speculative_overflow 1000000000"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"[SF], 11,"* ]]
-#    rm acceptance_simple_speculative_overflow
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Collecting functions" {
-#    touch list.txt
-#    make dummy.bc
-#    $CLANG_DIR/llc dummy.bc -x86-specfuzz -x86-specfuzz-collect-functions-into `pwd`/list.txt -o dummy.s
-#    uniq list.txt | sort > t && mv t list.txt
-#    run cat list.txt
-#    [ "$output" == "main" ]
-#    rm list.txt
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script" {
-#    /usr/bin/clang-sf acceptance-mmul.c -o acceptance-mmul --disable-asan
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#    rm acceptance-mmul
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script, in two stages" {
-#    /usr/bin/clang-sf acceptance-mmul.c -c -o acceptance-mmul.o --disable-asan
-#    /usr/bin/clang-sf acceptance-mmul.o -o acceptance-mmul
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#    rm acceptance-mmul acceptance-mmul.o
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script, as assembler" {
-#    /usr/bin/clang-sf acceptance-mmul.c -S -c -o acceptance-mmul.s --disable-asan
-#    /usr/bin/clang-sf acceptance-mmul.s -o acceptance-mmul
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#    rm acceptance-mmul acceptance-mmul.s
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Wrapper: mmul++ compiled with a c++ wrapper script, in two stages" {
-#    /usr/bin/clang-sf++ acceptance-mmul.cpp -c -o acceptance-mmul.o --disable-asan
-#    /usr/bin/clang-sf++ acceptance-mmul.o -o acceptance-mmul
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#    rm acceptance-mmul acceptance-mmul.o
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Acceptance: msum" {
-#    gcc acceptance-msum.c -o acceptance-msum
-#    run bash -c "./acceptance-msum"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"45" ]]
-#
-#    /usr/bin/clang-sf acceptance-msum.c -o ./acceptance-msum
-#    run bash -c "./acceptance-msum"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"45" ]]
-#
-#    /usr/bin/clang-sf acceptance-msum.c -o ./acceptance-msum -O1
-#    run bash -c "./acceptance-msum"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"45" ]]
-#
-#    /usr/bin/clang-sf acceptance-msum.c -o ./acceptance-msum -O2
-#    run bash -c "./acceptance-msum"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"45" ]]
-#
-#    /usr/bin/clang-sf acceptance-msum.c -o ./acceptance-msum -O3
-#    run bash -c "./acceptance-msum"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"45" ]]
-#
-#    rm acceptance-msum
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Acceptance: mmul" {
-#    gcc acceptance-mmul.c -o acceptance-mmul
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#
-#    /usr/bin/clang-sf acceptance-mmul.c -o ./acceptance-mmul
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#
-#    /usr/bin/clang-sf acceptance-mmul.c -o ./acceptance-mmul -O1
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#
-#    /usr/bin/clang-sf acceptance-mmul.c -o ./acceptance-mmul -O2
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#
-#    /usr/bin/clang-sf acceptance-mmul.c -o ./acceptance-mmul -O3
-#    run bash -c "./acceptance-mmul"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"70" ]]
-#
-#    rm acceptance-mmul
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Acceptance: msqr" {
-#    gcc acceptance-msqr.c -o acceptance-msqr
-#    run bash -c "./acceptance-msqr"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"126" ]]
-#
-#    /usr/bin/clang-sf acceptance-msqr.c -o ./acceptance-msqr
-#    run bash -c "./acceptance-msqr"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"126" ]]
-#
-#    /usr/bin/clang-sf acceptance-msqr.c -o ./acceptance-msqr -O1
-#    run bash -c "./acceptance-msqr"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"126" ]]
-#
-#    /usr/bin/clang-sf acceptance-msqr.c -o ./acceptance-msqr -O2
-#    run bash -c "./acceptance-msqr"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"126" ]]
-#
-#    /usr/bin/clang-sf acceptance-msqr.c -o ./acceptance-msqr -O3
-#    run bash -c "./acceptance-msqr"
-#    [ "$status" -eq 0 ]
-#    [[ "$output" == *"126" ]]
-#
-#    rm acceptance-msqr
-#}
-#
 #@test "[$BATS_TEST_NUMBER] Analyzer: Correctly aggregates values" {
 #    skip
 #    touch tmp
