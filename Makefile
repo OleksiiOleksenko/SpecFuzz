@@ -26,7 +26,7 @@ INSTALL_DIR := $(LLVM_SRC)/lib/Target/X86/
 export INSTALL_DIR
 
 # Files by categories
-RUNTIME := src/runtime.S src/runtime_init.c
+RUNTIME := src/specfuzz_rtl.S src/specfuzz_init.c src/specfuzz_cov.c
 LLVM_PATCH := $(wildcard install/patches/llvm/*)
 HONGG_PATCH := $(wildcard install/patches/honggfuzz/*)
 
@@ -40,10 +40,11 @@ pass: src/SpecFuzzPass.cpp
 	cp $< $(INSTALL_DIR)/SpecFuzzPass.cpp
 
 runtime: $(RUNTIME)
-	${CLANG} -O3 src/runtime_init.c -o runtime_init.o -c -ggdb3 $(RUNTIME_CONFIGURATION)
-	${CLANG} -O3 src/runtime.S -o runtime.o -c -ggdb3 $(RUNTIME_CONFIGURATION)
-	ar rc $(LLVM_BUILD)/lib/libspecfuzz.a runtime_init.o runtime.o
-	rm runtime_init.o runtime.o
+	${CLANG} -O3 src/specfuzz_init.c -o specfuzz_init.o -c -ggdb3 $(RUNTIME_CONFIGURATION)
+	${CLANG} -O3 src/specfuzz_rtl.S -o specfuzz_rtl.o -c -ggdb3 $(RUNTIME_CONFIGURATION)
+	${CLANG} -O3 src/specfuzz_cov.c -o specfuzz_cov.o -c -ggdb3 $(RUNTIME_CONFIGURATION)
+	ar rc $(LLVM_BUILD)/lib/libspecfuzz.a specfuzz_init.o specfuzz_rtl.o specfuzz_cov.o
+	rm specfuzz_rtl.o specfuzz_init.o
 
 patch_llvm: $(LLVM_PATCH)
 	# Connect SpecFuzz
