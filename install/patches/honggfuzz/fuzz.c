@@ -512,10 +512,6 @@ static void* fuzz_threadNew(void* arg) {
             break;
         }
 
-        //if (run.global->cnts.mutationsCnt % 100 == 0) {
-        //    LOG_I("Progress: %zu", run.global->cnts.mutationsCnt);
-        //}
-
         if (hfuzz->socketFuzzer.enabled) {
             fuzz_fuzzLoopSocket(&run);
         } else {
@@ -538,6 +534,7 @@ static void* fuzz_threadNew(void* arg) {
         kill(run.pid, SIGKILL);
     }
 
+    /* Report SpecFuzz coverage */
     if (fuzzNo == 0) {
         map_entry_t *coverage_map = run.global->feedback.feedbackMap->cmpMapPc;
         for (int i = 0; i < (int) COVERAGE_MAP_HASHMAP_SIZE ; i++) {

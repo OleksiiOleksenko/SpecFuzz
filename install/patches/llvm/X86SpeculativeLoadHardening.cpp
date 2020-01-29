@@ -117,20 +117,22 @@ static cl::opt<bool> HardenIndirectCallsAndJumps(
              "mitigate Spectre v1.2 style attacks."),
     cl::init(true), cl::Hidden);
 
-static cl::opt<std::string> Whitelist(
-    PASS_KEY "-whitelist",
+// SpecFuzz patch - start
+static cl::opt<std::string> WhitelistBranchesFile(
+    PASS_KEY "-whitelist-branches",
     cl::desc("Skip hardening of the branches listed in this file."),
     cl::init(""), cl::Hidden);
 
-static cl::opt<std::string> WhitelistLoads(
+static cl::opt<std::string> WhitelistLoadsFile(
     PASS_KEY "-whitelist-loads",
     cl::desc("Skip hardening of the loads listed in this file."),
     cl::init(""), cl::Hidden);
 
-static cl::opt<std::string> WhitelistFiles(
-    PASS_KEY "-whitelist-files",
-    cl::desc("Skip hardening of the files modules in this file."),
+static cl::opt<std::string> WhitelistModulesFile(
+    PASS_KEY "-whitelist-modules",
+    cl::desc("Skip hardening of the modules listed in this file."),
     cl::init(""), cl::Hidden);
+// SpecFuzz patch - end
 
 namespace llvm {
 
@@ -187,6 +189,16 @@ private:
   const TargetRegisterInfo *TRI;
 
   Optional<PredState> PS;
+
+  // SpecFuzz patch - start
+  bool WhitelistsInitialized = false;
+  std::set<std::string> WhitelistBranches;
+  std::set<std::string> WhitelistLoads;
+  std::set<std::string> WhitelistModules;
+
+  void initializeWhitelists();
+  std::string getLocationName(DebugLoc Loc);
+  // SpecFuzz patch - end
 
   void hardenEdgesWithLFENCE(MachineFunction &MF);
 
@@ -414,49 +426,81 @@ static bool hasVulnerableLoad(MachineFunction &MF) {
   return false;
 }
 
+// SpecFuzz patch - start
+void X86SpeculativeLoadHardeningPass::initializeWhitelists() {
+    if (WhitelistsInitialized)
+        return;
+
+    // Branches
+    std::string line;
+    if (not WhitelistBranchesFile.empty()) {
+        std::ifstream inFile(WhitelistBranchesFile, std::ios_base::in);
+        while (getline(inFile, line)) {
+            if (line.empty()) continue;
+            WhitelistBranches.insert(line);
+        }
+    }
+
+    // Loads
+    if (not WhitelistLoadsFile.empty()) {
+        std::ifstream inFile(WhitelistLoadsFile, std::ios_base::in);
+        while (getline(inFile, line)) {
+            if (line.empty()) continue;
+            WhitelistLoads.insert(line);
+        }
+    }
+
+    // Modules
+    if (not WhitelistModulesFile.empty()) {
+        std::ifstream inFile(WhitelistModulesFile, std::ios_base::in);
+        while (getline(inFile, line)) {
+            if (line.empty()) continue;
+            WhitelistModules.insert(line);
+        }
+    }
+
+    WhitelistsInitialized = true;
+}
+
+std::string X86SpeculativeLoadHardeningPass::getLocationName(DebugLoc Loc) {
+  std::string LocName = "";
+  if (not Loc)
+      return LocName;
+
+  LocName = cast<DIScope>(Loc.getScope())->getDirectory();
+  LocName.append("/");
+  LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
+  LocName.append(":");
+  LocName.append(std::to_string(Loc.getLine()));
+  LocName.append(":");
+  LocName.append(std::to_string(Loc.getCol()));
+  return LocName;
+}
+
+// SpecFuzz patch - end
+
+
 bool X86SpeculativeLoadHardeningPass::runOnMachineFunction(
     MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "********** " << getPassName() << " : " << MF.getName()
                     << " **********\n");
 
-  if (not WhitelistFiles.empty()) {
-      //for (MachineBasicBlock &MBB : MF) {
-      //    for (MachineInstr &MI : MBB) {
-      //        // We ignore virtual instructions
-      //        if (MI.isMetaInstruction())
-      //            continue;
-      //
-      //        DebugLoc Loc = MI.getDebugLoc();
-      //        std::string FileName = "";
-      //        if (Loc) {
-      //            FileName = cast<DIScope>(Loc.getScope())->getDirectory();
-      //            FileName.append("/");
-      //            FileName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-      //        }
-      //        //std::cout << "Replacement branch: " << FileName << "\n";
-      //        std::ifstream inFile(WhitelistFiles, std::ios_base::in);
-      //        std::string line;
-      //        while (getline(inFile, line)) {
-      //            if (line.empty()) continue;
-      //            if (FileName == line) {
-      //                return false;
-      //            }
-      //        }
-      //    }
-      //}
-        std::string FunctionName = MF.getName();
-        std::ifstream inFile(WhitelistFiles, std::ios_base::in);
-        std::string line;
-        bool Found = false;
-        while (getline(inFile, line)) {
-            if (line.empty()) continue;
-            if (FunctionName == line) {
-                Found = true;
-            }
-        }
-        if (not Found) return false;
-    }
+  // SpecFuzz patch - start
+  initializeWhitelists();
 
+  if (not WhitelistModules.empty()) {
+    std::string FunctionName = MF.getName();
+    bool Found = false;
+    for (auto ModuleName : WhitelistModules) {
+      if (FunctionName == ModuleName) {
+        Found = true;
+        break;
+      }
+    }
+    if (not Found)
+      return false;
+  }
+  // SpecFuzz patch - end
 
   Subtarget = &MF.getSubtarget<X86Subtarget>();
   MRI = &MF.getRegInfo();
@@ -626,57 +670,23 @@ void X86SpeculativeLoadHardeningPass::hardenEdgesWithLFENCE(
     if (TermIt == MBB.end() || !TermIt->isBranch())
       continue;
 
-    //===-----------------------------------------------------------------===//
-    // SpecFuzz-specific
-    if (not Whitelist.empty()) {
-        std::set<std::string> BranchList;
-        std::ifstream inFile(Whitelist, std::ios_base::in);
-        std::string line;
-        while (getline(inFile, line)) {
-            if (line.empty()) continue;
-            BranchList.insert(line);
+    // SpecFuzz patch - start
+    if (not WhitelistBranches.empty()) {
+      bool isWhitelisted = false;
+      for (MachineInstr &MI : MBB) {
+        std::string LocName = getLocationName(MI.getDebugLoc());
+        if (WhitelistBranches.count(LocName)) {
+          LLVM_DEBUG(dbgs() << "Listed branch: " << LocName << "\n");
+          isWhitelisted = true;
+          break;
+        } else {
+          LLVM_DEBUG(dbgs() << "Not listed branch: " << LocName << "\n");
         }
-
-        bool isWhitelisted = false;
-        for (MachineInstr &MI : MBB) {
-            DebugLoc Loc = MI.getDebugLoc();
-            std::string LocName = "";
-            if (Loc) {
-                LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-                LocName.append("/");
-                LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getLine()));
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getCol()));
-            }
-
-            if (BranchList.count(LocName)) {
-                LLVM_DEBUG(dbgs() << "Listed branch: " << LocName << "\n");
-                isWhitelisted = true;
-                break;
-            } else {
-                LLVM_DEBUG(dbgs() << "Not listed branch: " << LocName << "\n");
-            }
-
-            //} else if (Loc) {
-            //    LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-            //    LocName.append("/");
-            //    LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-            //    LocName.append(":");
-            //    LocName.append(std::to_string(Loc.getLine()));
-            //    for (auto Location : BranchList) {
-            //        if (Location.find(LocName) != std::string::npos) {
-            //            LocName.append(":");
-            //            LocName.append(std::to_string(Loc.getCol()));
-            //            std::cout << "Replacement branch: " << LocName << "\n";
-            //        }
-            //    }
-            //}
-        }
-        if (isWhitelisted)
-            continue;  // skip this branch
+      }
+      if (isWhitelisted)
+        continue;  // skip this branch
     }
+    // SpecFuzz patch - end
 
     // Add all the non-EH-pad succossors to the blocks we want to harden. We
     // skip EH pads because there isn't really a condition of interest on
@@ -705,58 +715,23 @@ X86SpeculativeLoadHardeningPass::collectBlockCondInfo(MachineFunction &MF) {
     if (MBB.succ_size() <= 1)
       continue;
 
-    //===-----------------------------------------------------------------===//
-    // SpecFuzz-specific
-    if (not Whitelist.empty()) {
-        std::set<std::string> BranchList;
-        std::ifstream inFile(Whitelist, std::ios_base::in);
-        std::string line;
-        while (getline(inFile, line)) {
-            if (line.empty()) continue;
-            BranchList.insert(line);
+    // SpecFuzz patch - start
+    if (not WhitelistBranches.empty()) {
+      bool isWhitelisted = false;
+      for (MachineInstr &MI : MBB) {
+        std::string LocName = getLocationName(MI.getDebugLoc());
+        if (WhitelistBranches.count(LocName)) {
+          LLVM_DEBUG(dbgs() << "Listed branch: " << LocName << "\n");
+          isWhitelisted = true;
+          break;
+        } else {
+          LLVM_DEBUG(dbgs() << "Not listed branch: " << LocName << "\n");
         }
-
-        bool isWhitelisted = false;
-        for (MachineInstr &MI : MBB) {
-            DebugLoc Loc = MI.getDebugLoc();
-            std::string LocName = "";
-            if (Loc) {
-                LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-                LocName.append("/");
-                LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getLine()));
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getCol()));
-            }
-
-            if (BranchList.count(LocName)) {
-                LLVM_DEBUG(dbgs() << "Listed branch: " << LocName << "\n");
-                isWhitelisted = true;
-                break;
-            } else {
-                LLVM_DEBUG(dbgs() << "Not listed branch: " << LocName << "\n");
-            }
-
-            //} else if (Loc) {
-            //    LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-            //    LocName.append("/");
-            //    LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-            //    LocName.append(":");
-            //    LocName.append(std::to_string(Loc.getLine()));
-            //    for (auto Location : BranchList) {
-            //        if (Location.find(LocName) != std::string::npos) {
-            //            LocName.append(":");
-            //            LocName.append(std::to_string(Loc.getCol()));
-            //            std::cout << "Replacement branch: " << LocName << "\n";
-            //        }
-            //    }
-            //}
-        }
-        if (isWhitelisted)
-            continue;  // skip this branch
+      }
+      if (isWhitelisted)
+        continue;  // skip this branch
     }
-    //===-----------------------------------------------------------------===//
+    // SpecFuzz patch - end
 
     // We want to reliably handle any conditional branch terminators in the
     // MBB, so we manually analyze the branch. We can handle all of the
@@ -1542,23 +1517,6 @@ void X86SpeculativeLoadHardeningPass::tracePredStateThroughBlocksAndHarden(
   // value which we would have checked, we can omit any checks on them.
   SparseBitVector<> LoadDepRegs;
 
-    //===-----------------------------------------------------------------===//
-    // SpecFuzz-specific
-    std::set <std::string> LoadList;
-    if (not WhitelistLoads.empty()) {
-        std::ifstream inFile(WhitelistLoads, std::ios_base::in);
-        std::string line;
-        while (getline(inFile, line)) {
-            if (line.empty()) continue;
-            LoadList.insert(line);
-        }
-    }
-    //===-----------------------------------------------------------------===//
-
-    //for (auto &MBB : MF)
-    //    for (auto &MI : MBB)
-    //        MI.dump();
-
   for (MachineBasicBlock &MBB : MF) {
     // The first pass over the block: collect all the loads which can have their
     // loaded value hardened and all the loads that instead need their address
@@ -1602,47 +1560,21 @@ void X86SpeculativeLoadHardeningPass::tracePredStateThroughBlocksAndHarden(
         if (MI.getOpcode() == X86::MFENCE)
           continue;
 
-        //===-----------------------------------------------------------------===//
-        // SpecFuzz-specific
+        // SpecFuzz patch - start
         if (not WhitelistLoads.empty()) {
-            bool isWhitelisted = false;
-            DebugLoc Loc = MI.getDebugLoc();
-            std::string LocName = "";
-            if (Loc) {
-                LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-                LocName.append("/");
-                LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getLine()));
-                LocName.append(":");
-                LocName.append(std::to_string(Loc.getCol()));
-            }
-
-            if (LoadList.count(LocName)) {
-                LLVM_DEBUG(dbgs() << "Listed load: " << LocName << "\n");
-                isWhitelisted = true;
-                break;
-            } else {
-                LLVM_DEBUG(dbgs() << "Not listed load: " << LocName << "\n");
-            }
-            //} else if (Loc) {
-            //    LocName = cast<DIScope>(Loc.getScope())->getDirectory();
-            //    LocName.append("/");
-            //    LocName.append(cast<DIScope>(Loc.getScope())->getFilename().str());
-            //    LocName.append(":");
-            //    LocName.append(std::to_string(Loc.getLine()));
-            //    for (auto Location : LoadList) {
-            //        if (Location.find(LocName) != std::string::npos) {
-            //            LocName.append(":");
-            //            LocName.append(std::to_string(Loc.getCol()));
-            //            std::cout << "Replacement load: " << LocName << "\n";
-            //        }
-            //    }
-            //}
-            if (isWhitelisted)
-                continue;  // skip this branch
+          bool isWhitelisted = false;
+          std::string LocName = getLocationName(MI.getDebugLoc());
+          if (WhitelistLoads.count(LocName)) {
+            LLVM_DEBUG(dbgs() << "Listed load: " << LocName << "\n");
+            isWhitelisted = true;
+            break;
+          } else {
+            LLVM_DEBUG(dbgs() << "Not listed load: " << LocName << "\n");
+          }
+          if (isWhitelisted)
+            continue;  // skip this load
         }
-        //===-----------------------------------------------------------------===//
+        // SpecFuzz patch - end
 
         // Extract the memory operand information about this instruction.
         // FIXME: This doesn't handle loading pseudo instructions which we often

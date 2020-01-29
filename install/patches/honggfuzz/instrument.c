@@ -144,7 +144,7 @@ static map_entry_t *get_hash_map_entry(uintptr_t pc) {
     uint64_t index = pc & COVERAGE_INDEX_MASK;
     uint64_t tag = (pc & COVERAGE_TAG_MASK) >> COVERAGE_INDEX_WIDTH;
     map_entry_t *entry = &(coverage_map[index]);
-    map_entry_t* next;
+    map_entry_t *next;
 
     if (entry->tag == 0) {
         entry->tag = tag;
