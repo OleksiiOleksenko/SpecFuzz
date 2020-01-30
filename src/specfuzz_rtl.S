@@ -688,7 +688,7 @@ specfuzz_report:
 .type	specfuzz_report_corrupted_code_pointer, @function
 specfuzz_report_corrupted_code_pointer:
     ASSERT nesting_level je $0 specfuzz_exit_unknown_corruption
-
+#if ENABLE_PRINT == 1
     movq store_log_bp, %r9
     movq CHECKPOINT_STACK_PC_OFFSET(%r9), %r9   // latest speculated branch
     movq $0, %r8                                // offset
@@ -698,6 +698,7 @@ specfuzz_report_corrupted_code_pointer:
     mov stderr, %rdi
     mov $0, %eax
     call _IO_fprintf
+#endif
     callq specfuzz_rlbk_forced
 
 
@@ -714,10 +715,16 @@ specfuzz_report_corrupted_code_pointer:
 .type specfuzz_check_code_pointer, @function
 specfuzz_check_code_pointer:
     pushfq
+    // TODO: this implementation is very simplistic and will often lead to false positives
+    // We need to come up with a better approach to verify a pointer
+    // So far, if it makes any trouble, just disable it at compile time
     cmpq $__executable_start, %rdi
     jl specfuzz_check_code_pointer.corrupted
     cmpq $_etext, %rdi
-    jg specfuzz_check_code_pointer.corrupted
+    jl .L12
+        cmpq $_edata, %rdi
+        jl specfuzz_check_code_pointer.corrupted
+    .L12:
     popfq
     ret
 specfuzz_check_code_pointer.corrupted:
