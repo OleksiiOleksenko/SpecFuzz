@@ -41,12 +41,12 @@ Try running it:
 ```bash
 $ ./demo-sf 11
 [SF] Starting
-[SF], 1, 0x52b556, 0x0, -8, 0x52b519
+[SF], 1, 0x123, 0x456, -8, 0x789
 r = 0
 ```
-Here, the line `[SF], 1, 0x52b556, 0x0, -8, 0x52b519` means that SpecFuzz detected that instruction
-at address `0x52b556` tried to access an invalid address `0x52b519` which was 8 bytes left from
-a nearest valid object.
+Here, the line `[SF], 1, 0x123, 0x456, -8, 0x52b519` means that SpecFuzz detected that the instruction
+at address `0x123` tried to access an invalid address `0x456`, and the speculation was triggered
+by a misprediction of a branch at the address `0x789`.
 
 # Testing
 Tests depend on bats ([Install bats](https://github.com/sstephenson/bats/wiki/Install-Bats-Using-a-Package)).

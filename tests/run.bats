@@ -109,7 +109,6 @@ Hello World!" ]
     rm list.txt
 }
 
-
 # Below are our old tests. They probably won't work anymore
 
 #@test "[$BATS_TEST_NUMBER] Analyzer: Correctly aggregates values" {
@@ -156,29 +155,4 @@ Hello World!" ]
 #    run grep "[SF] Error: foo bar" tmp
 #    [ "$status" -ne 0 ]
 #    rm tmp
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Coverage: mmul" {
-#    skip
-#    rm a.out*
-#    /usr/bin/clang-sf coverage.c  --enable-coverage
-#    ASAN_OPTIONS=coverage=1 ./a.out 1
-#    run bash -c "sancov -print-coverage-stats `find . -name 'a.out.*' | head -1` a.out"
-#    [ "$output" == "all-edges: 10
-#cov-edges: 6
-#all-functions: 2
-#cov-functions: 2" ]
-#    rm a.out*
-#}
-#
-#@test "[$BATS_TEST_NUMBER] Nesting: graph traversal" {
-#    skip
-#    ./hadouken.py tmp.c 10
-#    make tmp -B
-#    run bash -c "objdump -d -j .text tmp | grep \"main+\" | grep -v \"jmp\" | wc -l"
-#    [ "$output" == "2047" ]
-#
-#    run bash -c "gdb --batch --command=hadouken.gdb --args ./tmp 5 9 2>/dev/null | awk '/tmp.c/{ c = c + 1} END{print c}'"
-#    [ "$output" == "22" ]
-#    rm tmp.c tmp
 #}

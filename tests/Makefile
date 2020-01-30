@@ -15,11 +15,12 @@ all:
 	$(CC) $(CFLAGS) $< -o $@ $(RTLIB) -ltest -L.
 
 %: %.c libtest.a
-	$(CC) $(CFLAGS) $< -o $@ $(RTLIB) -ltest -L.
+	$(CC) $(CFLAGS) $< -o $@ $(RTLIB)
 
 libtest.a:
-	$(CC) $(CFLAGS) common/asm_test_runner.c -c -o asm_test_runner.o
-	$(CC) $(CFLAGS) common/process_state.S -c -o process_state.o
+	# here, we must use a normal, non-SpecFuzz compiler to avoid the instrumentation
+	gcc $(CFLAGS) common/asm_test_runner.c -c -o asm_test_runner.o
+	gcc $(CFLAGS) common/process_state.S -c -o process_state.o
 	ar rc $@ asm_test_runner.o process_state.o
 	rm asm_test_runner.o process_state.o
 
