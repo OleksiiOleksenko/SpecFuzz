@@ -128,7 +128,6 @@ while [ "$#" -gt 0 ]; do
                 ASAN_LDFLAGS="$ASAN_LDFLAGS $COVERAGE_FLAGS"
                 flag_coverage=1
             fi
-            shift
         ;;
         --coverage-only)
             if [ $flag_coverage_only == 0 ]; then
@@ -137,7 +136,6 @@ while [ "$#" -gt 0 ]; do
                 LLCFLAGS+=" -x86-specfuzz-coverage-only"
                 flag_coverage_only=1
             fi
-            shift
         ;;
         -V|-v|-qversion)
             $CC -v
@@ -153,11 +151,6 @@ while [ "$#" -gt 0 ]; do
     esac
     shift
 done
-
-if [ -z "$INPUT" ]; then
-    echo "clang-sf: error: no input files"
-    exit 1
-fi
 
 if [ -z "$OUTPUT" ]; then
     if [ $CREATE_OBJECT ]; then

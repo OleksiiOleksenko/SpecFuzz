@@ -315,7 +315,7 @@ class Collector:
 
         total_guards = len(
             re.findall(r"callq.*specfuzz_chkp", output.decode()))
-        if total_guards < 10:
+        if total_guards < 2:
             total_guards = len(
                 re.findall(r"callq.*specfuzz_cov_trace_pc_wrapper", output.decode()))
         return total_guards

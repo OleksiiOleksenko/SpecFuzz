@@ -24,9 +24,10 @@ Options:
 ```
 ## Build SpecFuzz and tools
 ```bash
-make
-make install
-$ HONGG_SRC=/honggfuzz/installation/directory/src/ make install_tools
+$ make
+$ make install
+$ export HONGG_SRC=/honggfuzz/installation/directory/src/
+$ make install_tools
 ```
 ## Try it
 Build a sample vulnerable program:
@@ -41,12 +42,44 @@ Try running it:
 ```bash
 $ ./demo-sf 11
 [SF] Starting
-[SF], 1, 0x123, 0x456, -8, 0x789
+[SF], 1, 0x123, 0x456, 0, 0x789
 r = 0
 ```
-Here, the line `[SF], 1, 0x123, 0x456, -8, 0x52b519` means that SpecFuzz detected that the instruction
+Here, the line `[SF], 1, 0x123, 0x456, 0, 0x52b519` means that SpecFuzz detected that the instruction
 at address `0x123` tried to access an invalid address `0x456`, and the speculation was triggered
 by a misprediction of a branch at the address `0x789`.
+# Fuzz it
+Build a fuzzing driver:
+```bash
+$ cd example
+$ export HONGG_SRC=/honggfuzz/installation/directory/src/
+$ make fuzz
+```
+Fuzz it:
+```bash
+$ honggfuzz --run_time 10 -Q -n 1 -f ./ -l fuzzing.log -- ./fuzz ___FILE___ 2>&1 | analyzer collect -r fuzzing.log -o results.json -b ./fuzz
+$ cat results.json   # raw results of fuzzing
+{
+  "errors": [],
+  "statistics": {
+    "coverage": [
+      75.0,
+      6
+    ],
+    "branches": 6,
+    "faults": 1
+  },
+  "branches": {
+    "5443896": {
+      "address": "0x531138",
+      "faults": [
+        "0x530a48"
+```
+Process the results:
+```bash
+$ analyzer aggregate results.json -s $(llvm-7.0.1-config --bindir)/llvm-symbolizer -b ./fuzz -o aggregated.json
+```
+The final, aggregated results are in `aggregated.json`.
 
 # Testing
 Tests depend on bats ([Install bats](https://github.com/sstephenson/bats/wiki/Install-Bats-Using-a-Package)).

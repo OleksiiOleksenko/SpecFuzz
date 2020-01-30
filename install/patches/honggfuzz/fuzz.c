@@ -536,6 +536,7 @@ static void* fuzz_threadNew(void* arg) {
 
     /* Report SpecFuzz coverage */
     if (fuzzNo == 0) {
+        LOG_I("Coverage:");
         map_entry_t *coverage_map = run.global->feedback.feedbackMap->cmpMapPc;
         for (int i = 0; i < (int) COVERAGE_MAP_HASHMAP_SIZE ; i++) {
             map_entry_t entry = coverage_map[i];

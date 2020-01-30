@@ -1,13 +1,14 @@
 NAME := demo
-SRC := main sizes
+SRC := demo sizes
 
 CC = clang
 CXX = clang++
-CFLAGS := -fsanitize=address -O1 -ggdb
+CFLAGS := -fsanitize=address -O3 -ggdb
 
 CCSF = clang-sf
 CXXSF = clang-sf++
-SF_CFLAGS := -fsanitize=address -O1 -ggdb
+SF_CFLAGS := -fsanitize=address -O3 -ggdb --enable-coverage
+HONGGFUZZ_LDFLAGS := -L${HONGG_SRC}/libhfuzz/ -L${HONGG_SRC}/libhfcommon -lhfuzz -lhfcommon
 
 all: sf
 
@@ -23,5 +24,8 @@ sf: $(addsuffix .sf.o, $(SRC))
 %.sf.o: %.c
 	$(CCSF) $(SF_CFLAGS) $< -c -o $@
 
+fuzz: fuzz.sf.o sizes.sf.o
+	$(CCSF) $(HONGGFUZZ_LDFLAGS) $(SF_CFLAGS) $? -o fuzz --echo
+
 clean:
-	rm -f *.o $(NAME)-native $(NAME)-sf
+	rm -f *.o $(NAME)-native $(NAME)-sf fuzz

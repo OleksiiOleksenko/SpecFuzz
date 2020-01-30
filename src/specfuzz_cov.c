@@ -13,7 +13,6 @@
 //===------------------------------------------------------------------------===//
 #include "specfuzz_rtl.h"
 
-__attribute__((weak))
 void specfuzz_cov_init() {}
 
 __attribute__((weak)) __attribute__((preserve_most))
