@@ -1,5 +1,5 @@
 # SpecFuzz
-A tool to enable fuzzing for Spectre vulnerabilities
+A tool to enable fuzzing for Spectre vulnerabilities. See our [Technical Report](https://arxiv.org/abs/1905.10311) for details.
 
 # Getting started
 
@@ -22,7 +22,7 @@ Usage: honggfuzz [options] -- path_to_command [args]
 Options:
 ...
 ```
-## Build SpecFuzz and tools
+## Build it
 ```bash
 $ make
 $ make install
@@ -48,14 +48,14 @@ r = 0
 Here, the line `[SF], 1, 0x123, 0x456, 0, 0x52b519` means that SpecFuzz detected that the instruction
 at address `0x123` tried to access an invalid address `0x456`, and the speculation was triggered
 by a misprediction of a branch at the address `0x789`.
-# Fuzz it
+## Fuzz it
 Build a fuzzing driver:
 ```bash
 $ cd example
 $ export HONGG_SRC=/honggfuzz/installation/directory/src/
 $ make fuzz
 ```
-Fuzz it:
+Fuzzing:
 ```bash
 $ honggfuzz --run_time 10 -Q -n 1 -f ./ -l fuzzing.log -- ./fuzz ___FILE___ 2>&1 | analyzer collect -r fuzzing.log -o results.json -b ./fuzz
 $ cat results.json   # raw results of fuzzing
@@ -81,7 +81,9 @@ $ analyzer aggregate results.json -s $(llvm-7.0.1-config --bindir)/llvm-symboliz
 ```
 The final, aggregated results are in `aggregated.json`.
 
-# Testing
+# Development
+
+## Testing
 Tests depend on bats ([Install bats](https://github.com/sstephenson/bats/wiki/Install-Bats-Using-a-Package)).
 ```bash
 $ cd tests
