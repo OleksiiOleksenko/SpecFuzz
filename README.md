@@ -1,6 +1,9 @@
 # SpecFuzz
 A tool to enable fuzzing for Spectre vulnerabilities. See our [Technical Report](https://arxiv.org/abs/1905.10311) for details.
 
+# Have trouble using the tool? Open an issue!
+The tool is relatively new and you might have trouble when installing or using it. If so, do not hesitate to open an issue.
+
 # Getting started
 
 ## Dependencies
