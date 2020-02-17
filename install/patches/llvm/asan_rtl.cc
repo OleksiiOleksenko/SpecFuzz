@@ -184,9 +184,10 @@ long* nesting_level;
         if (__asan_test_only_reported_buggy_pointer) {                         \
           *__asan_test_only_reported_buggy_pointer = addr;                     \
         } else {                                                               \
-          __asm__ volatile("                                    \
-            movq %0, %%rdi\n\t                                  \
+          __asm__ volatile("                                     \
+            movq %0, %%rdi\n\t                                   \
             movq (%%rsp), %%rsi\n\t                              \
+            addq $8, %%rsi\n\t                                    \
             call %1\n\t"                                         \
           : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );            \
         }                                                                      \
@@ -226,6 +227,7 @@ void __asan_loadN(uptr addr, uptr size) {
     // ReportGenericError(pc, bp, sp, addr, false, size, 0, true);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }
@@ -239,6 +241,7 @@ void __asan_exp_loadN(uptr addr, uptr size, u32 exp) {
     // ReportGenericError(pc, bp, sp, addr, false, size, exp, true);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }
@@ -252,6 +255,7 @@ void __asan_loadN_noabort(uptr addr, uptr size) {
     // ReportGenericError(pc, bp, sp, addr, false, size, 0, false);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }
@@ -265,6 +269,7 @@ void __asan_storeN(uptr addr, uptr size) {
     //ReportGenericError(pc, bp, sp, addr, true, size, 0, true);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }
@@ -278,6 +283,7 @@ void __asan_exp_storeN(uptr addr, uptr size, u32 exp) {
     //ReportGenericError(pc, bp, sp, addr, true, size, exp, true);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }
@@ -291,6 +297,7 @@ void __asan_storeN_noabort(uptr addr, uptr size) {
     // ReportGenericError(pc, bp, sp, addr, true, size, 0, false);
     __asm__ volatile("movq %0, %%rdi\n\t"
       "movq (%%rsp), %%rsi\n\t"
+      "addq $8, %%rsi\n\t"
       "call %1\n\t"
       : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
   }

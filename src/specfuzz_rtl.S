@@ -734,6 +734,7 @@ specfuzz_check_code_pointer:
 specfuzz_check_code_pointer.corrupted:
     STAT_INCREMENT stat_corrupted_code_pointer
     movq 8(%rsp), %rsi
+    addq $8, %rsi
     callq specfuzz_report_corrupted_code_pointer
 
 
