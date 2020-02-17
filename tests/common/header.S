@@ -1,5 +1,6 @@
 .extern set_state
 .extern store_stack_state
+.extern store_metadata
 .extern check_state
 .extern specfuzz_chkp
 .extern current_rsp
@@ -25,15 +26,20 @@
     movq $\value, %rdi
     callq set_state
     callq store_stack_state
+    callq store_metadata
 .endm
 
-.macro EXECUTE_CORRUPTION_TEST value
+.macro EXECUTE_CORRUPTION_TEST value include_meta
     movq $\value, %rdi
     callq check_state
     cmp $0, %rax
     je 1f
         ret
     1:
+
+.if \include_meta
+    callq check_metadata
+.endif
     RESET_META
     LOG log_test_end
 .endm

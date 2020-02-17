@@ -5,7 +5,15 @@
     CALL_RTL_FUNCTION specfuzz_chkp
     jmp 1f  // imitate instrumentation
     1:
-    EXECUTE_CORRUPTION_TEST 42
+    EXECUTE_CORRUPTION_TEST 42 0
+.endm
+
+.macro TEST_WITH_META id
+    PREPARE_CORRUPTION_TEST \id 42
+    CALL_RTL_FUNCTION specfuzz_chkp
+    jmp 1f  // imitate instrumentation
+    1:
+    EXECUTE_CORRUPTION_TEST 42 1
 .endm
 
 .text
@@ -20,7 +28,7 @@ main:
 
     # configuration variants
     movq $1, disable_speculation
-    TEST 2
+    TEST_WITH_META 2
 
     movq $1, nesting_level
     movq $10, instruction_counter  #  needs to be set. Otherwise, RTL will execute a rollback

@@ -1,7 +1,18 @@
 .include "common/header.S"
 
-.macro TEST_ROLLBACK id
-    PREPARE_CORRUPTION_TEST \id 42
+.data
+error_unreachable:      .string     "Unreachable location\n"
+
+.text
+.globl	main
+.type	main, @function
+main:
+    callq specfuzz_init
+    RESET_META
+
+    # test executed rollback
+    movq $250, instruction_counter
+    PREPARE_CORRUPTION_TEST 1 42
     CALL_RTL_FUNCTION specfuzz_chkp
     jmp 2f // normal
     jmp 1f // simulation
@@ -17,11 +28,11 @@
     jmp .unreachable
 
     2:
-    EXECUTE_CORRUPTION_TEST 42
-.endm
+    EXECUTE_CORRUPTION_TEST 42 1
 
-.macro TEST_NO_ROLLBACK id
-    PREPARE_CORRUPTION_TEST \id 42
+    # test skipped rollback
+    movq $1, disable_speculation
+    PREPARE_CORRUPTION_TEST 2 42
     CALL_RTL_FUNCTION specfuzz_chkp
     jmp 2f // normal
     jmp 1f // simulation
@@ -35,25 +46,9 @@
 
     // rollback
     movq $-1, instruction_counter
+    movq $-1, previous_instruction_counter
     CALL_RTL_FUNCTION specfuzz_rlbk_if_done
-    EXECUTE_CORRUPTION_TEST 41
-
-.endm
-
-.data
-error_unreachable:      .string     "Unreachable location\n"
-
-.text
-.globl	main
-.type	main, @function
-main:
-    RESET_META
-
-    # default behavior
-    TEST_ROLLBACK 1
-
-    movq $1, disable_speculation
-    TEST_NO_ROLLBACK 2
+    EXECUTE_CORRUPTION_TEST 41 1
 
     movq $0, %rax
     ret

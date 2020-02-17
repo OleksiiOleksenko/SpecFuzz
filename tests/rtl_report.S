@@ -38,7 +38,7 @@ main:
     jmp .L2 // simulation
 
     .L1:
-    EXECUTE_CORRUPTION_TEST 42
+    EXECUTE_CORRUPTION_TEST 42 0
 
     movq $0, %rax
     ret

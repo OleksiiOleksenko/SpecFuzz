@@ -3,7 +3,7 @@
 .macro TEST id fn_name
     PREPARE_CORRUPTION_TEST \id 42
     CALL_RTL_FUNCTION \fn_name
-    EXECUTE_CORRUPTION_TEST 42
+    EXECUTE_CORRUPTION_TEST 42 1
 .endm
 
 .text

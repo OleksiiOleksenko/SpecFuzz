@@ -9,6 +9,15 @@
 previous_rsp:                   .quad       0
 previous_rbp:                   .quad       0
 
+.globl previous_instruction_counter
+.globl previous_nesting_level
+.globl previous_disable_speculation
+.globl previous_specfuzz_call_type_stack_sp
+previous_instruction_counter:           .quad 0
+previous_nesting_level:                 .quad 0
+previous_disable_speculation:           .quad 0
+previous_specfuzz_call_type_stack_sp:   .quad 0
+
 .globl fx_frame
 .align 64
 fx_frame:                       .zero       512
@@ -59,6 +68,21 @@ set_state:
 store_stack_state:
     movq %rsp, previous_rsp
     movq %rbp, previous_rbp
+    ret
+
+.globl	store_metadata
+.type	store_metadata, @function
+store_metadata:
+    pushq %rax
+    movq instruction_counter, %rax
+    movq %rax, previous_instruction_counter
+    movq nesting_level, %rax
+    movq %rax, previous_nesting_level
+    movq disable_speculation, %rax
+    movq %rax, previous_disable_speculation
+    movq specfuzz_call_type_stack_sp, %rax
+    movq %rax, previous_specfuzz_call_type_stack_sp
+    popq %rax
     ret
 
 
@@ -121,6 +145,37 @@ check_state.success:
     ret
 
 check_state.fail:
+    pushq $0x246  # just in case, overwrite EFLAGS to avoid problems with printf
+    popfq
+
+    movq corruption_id, %rsi
+    xor %rdi, %rdi
+    movl $error_corruption, %edi
+    movq $0, %rax
+    call printf
+
+    movq $1, %rax
+    ret
+
+/// Check integrity of global variables
+///
+.globl  check_metadata
+.type	check_metadata, @function
+check_metadata:
+.macro CHECK_GLOBAL id, value, prev_value
+    movq \id, corruption_id
+    movq \prev_value, %rax
+    cmp %rax, \value
+    jne check_metadata.fail
+.endm
+
+    CHECK_GLOBAL $16, previous_instruction_counter, instruction_counter
+    CHECK_GLOBAL $17, previous_nesting_level, nesting_level
+    CHECK_GLOBAL $18, previous_disable_speculation, disable_speculation
+    CHECK_GLOBAL $19, previous_specfuzz_call_type_stack_sp, specfuzz_call_type_stack_sp
+    ret
+
+check_metadata.fail:
     pushq $0x246  # just in case, overwrite EFLAGS to avoid problems with printf
     popfq
 
