@@ -121,6 +121,9 @@ check_state.success:
     ret
 
 check_state.fail:
+    pushq $0x246  # just in case, overwrite EFLAGS to avoid problems with printf
+    popfq
+
     movq corruption_id, %rsi
     xor %rdi, %rdi
     movl $error_corruption, %edi

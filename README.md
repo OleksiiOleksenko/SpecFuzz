@@ -19,7 +19,7 @@ clang version 7.0.1 (tags/RELEASE_701/final)
 * HonggFuzz, built from sources:
 ```bash
 $ apt-get install -y libbfd-dev libunwind8-dev binutils-dev libblocksruntime-dev
-$ INSTALL_DIR=/honggfuzz/installation/directory/ ./scripts/honggfuzz.sh
+$ INSTALL_DIR=/honggfuzz/installation/directory/ ./install/honggfuzz.sh
 $ honggfuzz
 Usage: honggfuzz [options] -- path_to_command [args]
 Options:
@@ -28,8 +28,8 @@ Options:
 ## Build it
 ```bash
 $ make
-$ make install
 $ export HONGG_SRC=/honggfuzz/installation/directory/src/
+$ make install
 $ make install_tools
 ```
 ## Try it

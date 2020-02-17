@@ -15,6 +15,15 @@ teardown() {
     make clean
 }
 
+function asm_test {
+    CC=clang make ${NAME}
+    run bash -c "./${NAME} 2>&1"
+    if [ "$status" -ne 0 ]; then
+        echo "status: $status"
+        printf "output: $output\n"
+        echo "  output end"
+    fi
+}
 
 @test "[$BATS_TEST_NUMBER] Acceptance: The pass is enabled and compiles correctly" {
     NAME=dummy
@@ -44,7 +53,7 @@ Hello World!" ]
 @test "[$BATS_TEST_NUMBER] Acceptance: mmul" {
     NAME=acceptance-mmul
 
-    make ${NAME}
+    CC=clang make ${NAME}
     run bash -c "./${NAME}"
     [ "$status" -eq 0 ]
     [[ "$output" == *"70" ]]
@@ -72,16 +81,32 @@ Hello World!" ]
 
 @test "[$BATS_TEST_NUMBER] Runtime: Checkpointing function does not introduce corruptions" {
     NAME=rtl_chkp
-    make ${NAME}
-    run bash -c "./${NAME}"
+    asm_test
+    [ "$status" -eq 0 ]
+}
+
+@test "[$BATS_TEST_NUMBER] Runtime: Rollback function does not introduce corruptions" {
+    NAME=rtl_rlbk
+    asm_test
     [ "$status" -eq 0 ]
 }
 
 @test "[$BATS_TEST_NUMBER] Runtime: Rollback functions correctly" {
     NAME=rtl_chkp_rlbk
-    make ${NAME}
-    run bash -c "./${NAME}"
+    asm_test
     [ "$status" -eq 0 ]
+}
+
+@test "[$BATS_TEST_NUMBER] Runtime: Reporting does not introduce corruptions" {
+    NAME=rtl_report
+    asm_test
+    [ "$status" -eq 0 ]
+}
+
+@test "[$BATS_TEST_NUMBER] Runtime: Reporting functions correctly" {
+    NAME=rtl_report
+    asm_test
+    [[ "${lines[1]}" == "[SF], 1, 0x29, 0x29, 0, "* ]]
 }
 
 @test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script" {
