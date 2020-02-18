@@ -72,9 +72,7 @@ class Fault:
         if update.offsets and self.offsets and update.offsets != self.offsets:
             self.controlled_offset = True
 
-        if not self.controlled:  # this check is minor optimization to reduce the report size
-            self.accessed_addresses |= update.accessed_addresses
-
+        self.accessed_addresses |= update.accessed_addresses
         self.offsets |= update.offsets
         self.branch_sequences |= update.branch_sequences
         self.fault_count += 1
