@@ -601,21 +601,22 @@ specfuzz_report:
     je specfuzz_report.offset_found
 .endm
 
+    test_offset -2
+    test_offset -4
     test_offset -8
     test_offset -16
     test_offset -32
-    test_offset -64
-    test_offset -128
+    test_offset 2
+    test_offset 4
     test_offset 8
     test_offset 16
     test_offset 32
-    test_offset 64
-    test_offset 128
 
     jmp specfuzz_report.offset_not_found
 
     specfuzz_report.offset_found:
         movq %rbx, %r8   // offset
+        shlq $2, %r8     // the shadow memory is encoded byte-to-bit
         movq $0, %rcx    // accessed address
         jmp specfuzz_report.offset_done
 
