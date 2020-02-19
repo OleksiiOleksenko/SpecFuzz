@@ -25,7 +25,7 @@ sf: $(addsuffix .sf.o, $(SRC))
 	$(CCSF) $(SF_CFLAGS) $< -c -o $@
 
 fuzz: fuzz.sf.o sizes.sf.o
-	$(CCSF) $(HONGGFUZZ_LDFLAGS) $(SF_CFLAGS) $? -o fuzz --echo
+	$(CCSF) $(HONGGFUZZ_LDFLAGS) $(SF_CFLAGS) $? -o fuzz
 
 clean:
 	rm -f *.o $(NAME)-native $(NAME)-sf fuzz

@@ -31,7 +31,7 @@ class Fault:
     controlled_offset: bool = False
     types: Set[int]
 
-    def __init__(self, address):
+    def __init__(self, address: int):
         self.address = address
         self.accessed_addresses = set()
         self.offsets = set()
@@ -48,8 +48,8 @@ class Fault:
 
         return {
             "address": hex(self.address),
-            "accessed_addresses": list([a for a in self.accessed_addresses]),
-            "offsets": list([a for a in self.offsets]),
+            "accessed_addresses": sorted(list([a for a in self.accessed_addresses])),
+            "offsets": sorted(list([a for a in self.offsets])),
             "branch_sequences": sequences,
             "order": self.order,
             "fault_count": self.fault_count,
@@ -177,24 +177,25 @@ class CollectedResults:
             "faults": len(self.faults)
         }
 
-    '''
-    Remove redundant branch sequences.
-    E.g., if we have two sequences: (A, B, C) and (A, B, C, D),
-    we consider the latter one redundant as the same vulnerability
-    could be triggered by a misprediction of a subset of branches in it.
-    '''
-
     def minimize_sequences(self):
+        """Remove redundant branch sequences.
+        E.g., if we have two sequences: (A, B, C) and (A, B, C, D),
+        we consider the latter one redundant as the same vulnerability
+        could be triggered by a misprediction of a subset of branches in it.
+        """
         for fault in self.faults.values():
             redundant_sequences = []
             sequences = list(fault.branch_sequences)
             for i in range(len(sequences)):
                 for j in range(i + 1, len(sequences)):
-                    sequence1 = set(sequences[i])
-                    sequence2 = set(sequences[j])
-                    if sequence1 > sequence2:
-                        redundant_sequences.append(sequence1)
-                        break
+                    if set(sequences[i]) > set(sequences[j]):  # i is superset
+                        redundant_sequences.append(sequences[i])
+                    elif set(sequences[j]) > set(sequences[i]):  # j is superset
+                        redundant_sequences.append(sequences[j])
+                    elif set(sequences[i]) == set(sequences[j]):  # same set, maybe with duplicates
+                        redundant_sequences.append(
+                            sequences[i] if len(sequences[i]) > len(sequences[j])
+                            else sequences[j])
             fault.branch_sequences -= set(redundant_sequences)
 
     def set_order(self):
@@ -489,8 +490,7 @@ class SymbolizedResults:
         symbolized_fault.faults.append(serialized_fault_data)
 
 
-def build_aggregated_report(input_, output, symbolizer_path, binary,
-                            consider_callsite=False, ignore_asan=True):
+def build_aggregated_report(input_, output, symbolizer_path, binary, consider_callsite=False):
     def get_key(address):
         l = symbolizer.symbolize_one(address)
         if consider_callsite:
@@ -498,9 +498,8 @@ def build_aggregated_report(input_, output, symbolizer_path, binary,
         else:
             k = l[0]
 
-        if ignore_asan:
-            if "asan" in k or "sanitizer" in k:
-                return "", ""
+        if "asan" in k or "sanitizer" in k:
+            raise RuntimeError("Detected an exception in ASan runtime library: " + k)
 
         return k, l
 
@@ -737,10 +736,6 @@ def main():
         required=True
     )
     parser_aggregate.add_argument(
-        "-a", "--include-asan",
-        action='store_true',
-    )
-    parser_aggregate.add_argument(
         "-c", "--consider-callsite",
         action='store_true',
     )
@@ -768,7 +763,7 @@ def main():
 
     elif args.subparser_name == "aggregate":
         build_aggregated_report(args.input, args.output, args.symbolizer, args.binary,
-                                args.consider_callsite, not args.include_asan)
+                                args.consider_callsite)
 
     elif args.subparser_name == "query":
         query = Query(args.input, args)

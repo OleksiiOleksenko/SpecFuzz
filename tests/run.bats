@@ -134,6 +134,15 @@ Hello World!" ]
     rm list.txt
 }
 
+@test "[$BATS_TEST_NUMBER] Analyzer: Unit tests" {
+    run bash -c "python3 -m unittest -v analyzer_unit"
+    if [ "$status" -ne 0 ]; then
+        printf "$output\n"
+    fi
+    [ "$status" -eq 0 ]
+}
+
+
 # Below are our old tests. They probably won't work anymore
 
 #@test "[$BATS_TEST_NUMBER] Analyzer: Correctly aggregates values" {
