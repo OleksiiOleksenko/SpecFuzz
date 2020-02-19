@@ -187,10 +187,13 @@ class CollectedResults:
     def minimize_sequences(self):
         for fault in self.faults.values():
             redundant_sequences = []
-            for branch_sequence in fault.branch_sequences:
-                for other_sequence in fault.branch_sequences:
-                    if set(branch_sequence) > set(other_sequence):
-                        redundant_sequences.append(branch_sequence)
+            sequences = list(fault.branch_sequences)
+            for i in range(len(sequences)):
+                for j in range(i + 1, len(sequences)):
+                    sequence1 = set(sequences[i])
+                    sequence2 = set(sequences[j])
+                    if sequence1 > sequence2:
+                        redundant_sequences.append(sequence1)
                         break
             fault.branch_sequences -= set(redundant_sequences)
 
@@ -309,14 +312,14 @@ class Collector:
         try:
             output = subprocess.check_output(["objdump", binary, "-D"])
         except subprocess.CalledProcessError:
-            output = ""
+            output = "".encode()
 
-        total_guards = len(
-            re.findall(r"callq.*specfuzz_chkp", output.decode()))
-        if total_guards < 2:
-            total_guards = len(
-                re.findall(r"callq.*specfuzz_cov_trace_pc_wrapper", output.decode()))
-        return total_guards
+        total_cov_branches = len(re.findall(r"callq.*specfuzz_chkp", output.decode()))
+        total_cov_branches_nosim = len(
+            re.findall(r"callq.*specfuzz_cov_trace_pc_wrapper", output.decode()))
+        if total_cov_branches < 2 and total_cov_branches_nosim != 0:
+            return total_cov_branches_nosim
+        return total_cov_branches
 
 
 def merge_reports(inputs, output, binary):
