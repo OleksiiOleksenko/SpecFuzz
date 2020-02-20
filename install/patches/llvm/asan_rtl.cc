@@ -171,6 +171,15 @@ typedef void (*func_ptr_t)(void);
 func_ptr_t specfuzz_report = 0;
 long* nesting_level;
 
+#define SF_REPORT(addr)                                                         \
+    void *offending_instruction = __builtin_return_address(0) + 8;              \
+    __asm__ volatile("movq %0, %%rdi\n"                                         \
+      "movq %1, %%rsi\n"                                                        \
+      "callq %2\n"                                                              \
+      : : "g" (addr), "g" (offending_instruction), "m" (specfuzz_report)        \
+      : "rdi", "rsi" );
+
+
 #define ASAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, exp_arg, fatal) \
     if (SANITIZER_MYRIAD2 && !AddrIsInMem(addr) && !AddrIsInShadow(addr))      \
       return;                                                                  \
@@ -184,12 +193,7 @@ long* nesting_level;
         if (__asan_test_only_reported_buggy_pointer) {                         \
           *__asan_test_only_reported_buggy_pointer = addr;                     \
         } else {                                                               \
-          __asm__ volatile("                                     \
-            movq %0, %%rdi\n\t                                   \
-            movq (%%rsp), %%rsi\n\t                              \
-            addq $8, %%rsi\n\t                                    \
-            call %1\n\t"                                         \
-          : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );            \
+          SF_REPORT(addr);                                                     \
         }                                                                      \
       }                                                                        \
     }
@@ -223,13 +227,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_loadN(uptr addr, uptr size) {
   if (__asan_region_is_poisoned(addr, size)) {
-    // GET_CALLER_PC_BP_SP;
-    // ReportGenericError(pc, bp, sp, addr, false, size, 0, true);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
@@ -237,13 +235,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_exp_loadN(uptr addr, uptr size, u32 exp) {
   if (__asan_region_is_poisoned(addr, size)) {
-    // GET_CALLER_PC_BP_SP;
-    // ReportGenericError(pc, bp, sp, addr, false, size, exp, true);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
@@ -251,13 +243,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_loadN_noabort(uptr addr, uptr size) {
   if (__asan_region_is_poisoned(addr, size)) {
-    // GET_CALLER_PC_BP_SP;
-    // ReportGenericError(pc, bp, sp, addr, false, size, 0, false);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
@@ -265,13 +251,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_storeN(uptr addr, uptr size) {
   if (__asan_region_is_poisoned(addr, size)) {
-    //GET_CALLER_PC_BP_SP;
-    //ReportGenericError(pc, bp, sp, addr, true, size, 0, true);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
@@ -279,13 +259,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_exp_storeN(uptr addr, uptr size, u32 exp) {
   if (__asan_region_is_poisoned(addr, size)) {
-    //GET_CALLER_PC_BP_SP;
-    //ReportGenericError(pc, bp, sp, addr, true, size, exp, true);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
@@ -293,13 +267,7 @@ extern "C"
 NOINLINE INTERFACE_ATTRIBUTE
 void __asan_storeN_noabort(uptr addr, uptr size) {
   if (__asan_region_is_poisoned(addr, size)) {
-    // GET_CALLER_PC_BP_SP;
-    // ReportGenericError(pc, bp, sp, addr, true, size, 0, false);
-    __asm__ volatile("movq %0, %%rdi\n\t"
-      "movq (%%rsp), %%rsi\n\t"
-      "addq $8, %%rsi\n\t"
-      "call %1\n\t"
-      : : "r" (addr), "r" (specfuzz_report) : "rdi", "rsi" );
+    SF_REPORT(addr);
   }
 }
 
