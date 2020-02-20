@@ -499,7 +499,8 @@ def build_aggregated_report(input_, output, symbolizer_path, binary, consider_ca
             k = l[0]
 
         if "asan" in k or "sanitizer" in k:
-            raise RuntimeError("Detected an exception in ASan runtime library: " + k)
+            raise RuntimeError(
+                "Detected an exception in ASan runtime library: " + k + " at " + address)
 
         return k, l
 

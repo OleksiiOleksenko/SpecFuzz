@@ -20,6 +20,9 @@ extern uint64_t branch_execution_count;
 extern uint64_t specfuzz_rtl_frame;
 extern uint64_t specfuzz_rtl_frame_bottom;
 
+extern uint64_t asan_rtl_frame;
+extern uint64_t asan_rtl_frame_bottom;
+
 extern uint64_t *checkpoint_sp;
 extern uint64_t checkpoint_stack;
 extern uint64_t checkpoint_stack_bottom;

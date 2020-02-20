@@ -140,6 +140,7 @@ specfuzz_rtl_frame:             .quad   0
 
 // A disjoint stack frame for ASan functions
 .globl asan_rtl_frame
+.globl asan_rtl_frame_bottom
 asan_rtl_frame_bottom:          .zero   4088
 asan_rtl_frame:                 .quad   0
 
@@ -729,6 +730,7 @@ specfuzz_check_code_pointer:
     jl specfuzz_check_code_pointer.ok
     cmpq $_end, %rdi  # bss and data
     jl specfuzz_check_code_pointer.corrupted
+
 specfuzz_check_code_pointer.unknown:
     // We are above BSS, which means we are about to either enter a dynamically linked
     // code (most likely uninstrumented) or to executes some random data
@@ -743,6 +745,7 @@ specfuzz_check_code_pointer.unknown:
 specfuzz_check_code_pointer.ok:
     popfq
     ret
+
 specfuzz_check_code_pointer.corrupted:
     STAT_INCREMENT stat_corrupted_code_pointer
     movq 8(%rsp), %rsi

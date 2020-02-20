@@ -71,6 +71,11 @@ void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
 
     if (siginfo->si_signo == SIGFPE) {
         STAT_INCREMENT(stat_signal_misc);
+    } else if (context->uc_mcontext.gregs[REG_RSP] >= (long long) &asan_rtl_frame_bottom &&
+        context->uc_mcontext.gregs[REG_RSP] <= (long long) &asan_rtl_frame) {
+        // When we detect an overflow in ASan RTL, recovering the offending address is tricky
+        // For the time being, we ignore these cases
+        STAT_INCREMENT(stat_signal_overflow);
     } else {
 #if ENABLE_PRINT == 1
         // Print information about the signal
