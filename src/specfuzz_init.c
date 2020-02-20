@@ -43,6 +43,7 @@ char output[OUTPUT_SIZE];
 void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
     ucontext_t *context = ((ucontext_t *) ucontext);
     greg_t *uc_gregs = context->uc_mcontext.gregs;
+    long long int instruction = context->uc_mcontext.gregs[REG_RIP];
 
 #if ENABLE_SANITY_CHECKS == 1
     if (inside_handler != 0) {
@@ -71,7 +72,6 @@ void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
     if (siginfo->si_signo == SIGFPE) {
         STAT_INCREMENT(stat_signal_misc);
     } else {
-        long long int instruction = context->uc_mcontext.gregs[REG_RIP];
 #if ENABLE_PRINT == 1
         // Print information about the signal
         // Note: the calls to fprintf are not multithreading-safe

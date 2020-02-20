@@ -12,7 +12,7 @@ all:
 	echo "no default"
 
 %: %.S libtest.a
-	$(CC) $(CFLAGS) $< -o $@ $(RTLIB) -ltest -L.
+	$(CC) $(CFLAGS) $< -o $@ $(RTLIB) -ltest -L. -fsanitize=address
 
 %: %.c libtest.a
 	$(CC) $(CFLAGS) $< -o $@ $(RTLIB)

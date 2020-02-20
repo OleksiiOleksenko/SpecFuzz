@@ -726,10 +726,21 @@ specfuzz_check_code_pointer:
     cmpq $__executable_start, %rdi
     jl specfuzz_check_code_pointer.corrupted
     cmpq $_etext, %rdi
-    jl .L12
-        cmpq $_edata, %rdi
-        jl specfuzz_check_code_pointer.corrupted
-    .L12:
+    jl specfuzz_check_code_pointer.ok
+    cmpq $_end, %rdi  # bss and data
+    jl specfuzz_check_code_pointer.corrupted
+specfuzz_check_code_pointer.unknown:
+    // We are above BSS, which means we are about to either enter a dynamically linked
+    // code (most likely uninstrumented) or to executes some random data
+    // We do not report this case, because it could be a desired behavior (dynamic libs),
+    // but in both cases we need to rollback
+    cmpq $0, nesting_level
+    je 1f
+    callq specfuzz_rlbk
+    1: popfq
+    ret
+
+specfuzz_check_code_pointer.ok:
     popfq
     ret
 specfuzz_check_code_pointer.corrupted:

@@ -106,7 +106,7 @@ Hello World!" ]
 @test "[$BATS_TEST_NUMBER] Runtime: Reporting functions correctly" {
     NAME=rtl_report
     asm_test
-    [[ "${lines[1]}" == "[SF], 1, 0x29, 0x29, 0, "* ]]
+    [[ "${lines[1]}" == "[SF], 1, 0x29, 0x29, 0, "* ]] || [[ "${lines[1]}" == "[SF], 1, 0x29, 0x0, -8, "* ]]
 }
 
 @test "[$BATS_TEST_NUMBER] Wrapper: mmul compiled with a wrapper script" {
