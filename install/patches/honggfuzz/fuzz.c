@@ -463,6 +463,41 @@ static void fuzz_fuzzLoopSocket(run_t* run) {
     report_Report(run);
 }
 
+/// A testing function that prints the number of elements in every bucket
+///
+/// TODO: this function does not fit well into the scope of this file.
+/// Move it somewhere else
+void hash_map_usage(feedback_t *feedback) {
+    map_entry_t *coverage_map = feedback->cmpMapPc;
+    LOG_I("Coverage map: item distribution");
+    int free = 0;
+    int max = 0;
+    for (unsigned i = 0; i < COVERAGE_MAP_HASHMAP_SIZE; i++) {
+        map_entry_t *entry = &(coverage_map[i]);
+        if (entry->count == 0) {
+            free++;
+            continue;
+        }
+
+        LOG_I("Starting Bucket %d", i);
+        map_entry_t *coverage_map_conflicts = &coverage_map[COVERAGE_MAP_HASHMAP_SIZE];
+        int depth = 1;
+        while (1) {
+            LOG_I("Enter depth %d, next %d", depth, entry->next);
+            if (entry->next == 0) {
+                break;
+            }
+            entry = &coverage_map_conflicts[entry->next];
+            depth++;
+        }
+        if (depth > max) max = depth;
+        //LOG_I("Bucket %d: %d", i, depth);
+    }
+    LOG_I("Free buckets: %d%%", (free * 100 / COVERAGE_MAP_HASHMAP_SIZE));
+    LOG_I("Max items per bucket: %d", max);
+    LOG_I("Num conflicts: %d; max allowed: %d", feedback->cmpMapPcTop, COVERAGE_MAP_CONFLICTS_SIZE);
+}
+
 static void* fuzz_threadNew(void* arg) {
     honggfuzz_t* hfuzz = (honggfuzz_t*)arg;
     unsigned int fuzzNo = ATOMIC_POST_INC(hfuzz->threads.threadsActiveCnt);
@@ -553,6 +588,7 @@ static void* fuzz_threadNew(void* arg) {
             uint64_t address = (entry.tag << COVERAGE_INDEX_WIDTH) + i;
             LOG_I("[SF], 0x%lx: %d", address, entry.count);
         }
+        //hash_map_usage(run.global->feedback.feedbackMap);
     }
     LOG_I("Terminating thread no. #%" PRId32 ", left: %zu", fuzzNo,
         hfuzz->threads.threadsMax - ATOMIC_GET(run.global->threads.threadsFinished));
