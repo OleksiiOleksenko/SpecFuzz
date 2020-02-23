@@ -169,9 +169,9 @@ struct strings_t {
 
 
 /* Coverage map interface */
-#define COVERAGE_INDEX_WIDTH 24U
+#define COVERAGE_INDEX_WIDTH 16U
 #define COVERAGE_TAG_WIDTH (48U - COVERAGE_INDEX_WIDTH)
-#define COVERAGE_CONFLICTS_INDEX_WIDTH 8U
+#define COVERAGE_CONFLICTS_INDEX_WIDTH 12U
 #define COVERAGE_MAP_HASHMAP_SIZE (1U << COVERAGE_INDEX_WIDTH)
 #define COVERAGE_MAP_CONFLICTS_SIZE (1U << COVERAGE_CONFLICTS_INDEX_WIDTH)
 #define COVERAGE_MAP_SIZE (COVERAGE_MAP_HASHMAP_SIZE + COVERAGE_MAP_CONFLICTS_SIZE)
@@ -179,7 +179,7 @@ struct strings_t {
 #define COVERAGE_TAG_MASK (0xffffffffffffffU - COVERAGE_INDEX_MASK)
 typedef struct {
     unsigned long tag : COVERAGE_TAG_WIDTH;
-    uint8_t next : COVERAGE_CONFLICTS_INDEX_WIDTH;
+    uint16_t next : COVERAGE_CONFLICTS_INDEX_WIDTH;
     unsigned count : (64U - COVERAGE_TAG_WIDTH - COVERAGE_CONFLICTS_INDEX_WIDTH);
 } map_entry_t;
 
@@ -190,6 +190,7 @@ typedef struct {
 #define VULN_MAP_SIZE (1U << VULN_MAP_INDEX_WIDTH)
 
 typedef struct {
+    uint32_t cmpMapPcTop;
     map_entry_t cmpMapPc[COVERAGE_MAP_SIZE];
     uint8_t vulnMap[VULN_MAP_SIZE];
     uint8_t bbMapPc[_HF_PERF_BITMAP_SIZE_16M];

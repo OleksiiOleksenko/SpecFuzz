@@ -138,6 +138,9 @@ void specfuzz_cov_trace_pc(uintptr_t pc) {
 }
 
 /// A helper function for accessing the coverage map
+///
+/// Warning: This function is not safe for parallel fuzzing.
+/// To support it, the function needs to be re-written with atomics
 __attribute__((always_inline)) __attribute__((preserve_most))
 static map_entry_t *get_hash_map_entry(uintptr_t pc) {
     map_entry_t *coverage_map = (map_entry_t *) feedback->cmpMapPc;
@@ -154,19 +157,19 @@ static map_entry_t *get_hash_map_entry(uintptr_t pc) {
     }
 
     // hash conflict
-    static uint32_t coverage_map_conflicts_top = 0;
     map_entry_t *coverage_map_conflicts = &coverage_map[COVERAGE_MAP_HASHMAP_SIZE];
     do {
         if (entry->next == 0) { // create a new entry
-            next = &(coverage_map_conflicts[coverage_map_conflicts_top]);
-            entry->next = (uint16_t) coverage_map_conflicts_top;
+            uint32_t top = feedback->cmpMapPcTop;
+            next = &(coverage_map_conflicts[top]);
+            entry->next = (uint16_t) top;
             next->tag = tag;
 
-            coverage_map_conflicts_top++;
-            if (coverage_map_conflicts_top > COVERAGE_MAP_CONFLICTS_SIZE) {
-                LOG_F("coverage map overflow");
+            if (top + 1 > COVERAGE_MAP_CONFLICTS_SIZE) {
+                LOG_F("Error: coverage map overflow");
                 exit(1);
             }
+            feedback->cmpMapPcTop = top + 1;
             return next;
         }
         entry = &coverage_map_conflicts[entry->next];
