@@ -165,7 +165,7 @@ CFLAGS="$CFLAGS -mno-avx -mno-avx2 "
 
 
 if ! [ $CREATE_OBJECT ]; then
-    LDFLAGS="$LDFLAGS -rdynamic -lspecfuzz"
+    LDFLAGS="$LDFLAGS -rdynamic"
 fi
 
 if [ -n "$SOURCE" ] && [ -z "$ASM" ] && [ -z "$DEVNULL" ]; then
@@ -179,7 +179,7 @@ if [ -n "$SOURCE" ] && [ -z "$ASM" ] && [ -z "$DEVNULL" ]; then
     if [ -z "$NO_CLEANUP" ]; then rm ${OUTPUT%.o}.bc; fi
 
     if [ -z "$CREATE_ASM" ]; then
-        cmd=( $CC -Wno-unused-command-line-argument $CFLAGS $ASAN_LDFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS )
+        cmd=( $CC -Wno-unused-command-line-argument $CFLAGS $ASAN_LDFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS -lspecfuzz)
         if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
         "${cmd[@]}"
     else
@@ -193,7 +193,7 @@ else
         I=
     fi
 
-    cmd=( $CC $ASAN_LDFLAGS $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS )
+    cmd=( $CC $ASAN_LDFLAGS $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS -lspecfuzz)
     if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
     "${cmd[@]}"
 fi
