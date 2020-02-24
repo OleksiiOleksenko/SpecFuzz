@@ -45,7 +45,7 @@ Hello World!" ]
 @test "[$BATS_TEST_NUMBER] Acceptance: Detection of a speculative overflow with signal handler" {
     NAME=acceptance-basic
     CC=clang-sf make ${NAME}
-    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./${NAME} 1000000000"
+    run bash -c "ASAN_OPTIONS=allow_user_segv_handler=1:detect_leaks=0 ./${NAME} 5000"
     [ "$status" -eq 0 ]
     [[ "$output" == *"[SF], 11,"* ]]
 }
