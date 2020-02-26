@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 import subprocess
 import re
 import json
+from operator import itemgetter
 
 
 class SaneJSONEncoder(json.JSONEncoder):
@@ -131,15 +132,15 @@ class CollectedResults:
                 .setdefault(instruction_address, Fault(instruction_address))
             instruction.update(new_instruction_data)
 
-    def merge(self, data):
-        for address, data in data["branches"].items():
+    def merge(self, full_data):
+        for address, data in full_data["branches"].items():
             branch = self.branches.setdefault(int(address, 16), Branch(int(address, 16)))
             branch.nonspeculative_execution_count += data["nonspeculative_execution_count"]
             branch.fault_count += data["fault_count"]
             for f in data.get("faults", []):
                 branch.faults.add(int(f, 16))
 
-        for address, data in data["faults"].items():
+        for address, data in full_data["faults"].items():
             fault = self.faults.setdefault(int(address, 16), Fault(int(address, 16)))
             fault.fault_count += data["fault_count"]
             for a in data["accessed_addresses"]:
@@ -152,7 +153,7 @@ class CollectedResults:
                 fault.branch_sequences \
                     .add(tuple([int(b, 16) for b in branch_sequence]))
 
-        for e in data["errors"]:
+        for e in full_data["errors"]:
             self.crashed_runs.append(e)
 
     def get_dict(self):
@@ -177,32 +178,110 @@ class CollectedResults:
             "faults": len(self.faults)
         }
 
+    def set_order(self):
+        for fault in self.faults.values():
+            for branch_sequence in fault.branch_sequences:
+                if fault.order == 0 or fault.order > len(branch_sequence):
+                    fault.order = len(branch_sequence)
+
     def minimize_sequences(self):
         """Remove redundant branch sequences.
         E.g., if we have two sequences: (A, B, C) and (A, B, C, D),
         we consider the latter one redundant as the same vulnerability
         could be triggered by a misprediction of a subset of branches in it.
         """
+        # performance testing:
+        # import cProfile, pstats, io
+        # from pstats import SortKey
+        # pr = cProfile.Profile()
+        # pr.enable()
+        # all_sequences = 0
+
+        print("Minimizing sequences")
+        total = len(self.faults.values())
+        count = 0
+        done = 0
         for fault in self.faults.values():
-            redundant_sequences = []
-            sequences = list(fault.branch_sequences)
-            for i in range(len(sequences)):
-                for j in range(i + 1, len(sequences)):
-                    if set(sequences[i]) > set(sequences[j]):  # i is superset
-                        redundant_sequences.append(sequences[i])
-                    elif set(sequences[j]) > set(sequences[i]):  # j is superset
-                        redundant_sequences.append(sequences[j])
-                    elif set(sequences[i]) == set(sequences[j]):  # same set, maybe with duplicates
-                        redundant_sequences.append(
-                            sequences[i] if len(sequences[i]) > len(sequences[j])
-                            else sequences[j])
+            count += 1
+            if count > total / 10:
+                count = 0
+                done += 10
+                print("%d%%" % done)
+
+            redundant_sequences = set()
+            redundant_indexes = set()
+            # all_sequences += len(fault.branch_sequences)
+
+            # remove duplicates first and generate a nice list of sorted tuples
+            fault.branch_sequences = set([tuple(sorted(set(s))) for s in fault.branch_sequences])
+
+            # first, convert all sequences to sets - it's faster to work on them
+            sequences = [(s, len(s)) for s in fault.branch_sequences]
+            len_sequences = len(sequences)
+
+            # sort
+            sequences.sort(key=itemgetter(0))
+            sequences.sort(key=itemgetter(1))
+
+            # search for supersets
+            for i in range(len_sequences):
+                si, si_len = sequences[i]
+                for j in range(i + 1, len_sequences):
+                    if j in redundant_indexes:  # the element was already removed
+                        continue
+                    sj, sj_len = sequences[j]
+
+                    # same length, different contents - definitely not a subset
+                    # (duplicates are already removed)
+                    if si_len == sj_len:
+                        continue
+
+                    # slow path - subsets
+                    # since the list is sorted, here sj_len > si_len
+                    for element in si:
+                        if element not in sj:
+                            break
+                    else:
+                        # found a subset
+                        redundant_sequences.add(sj)
+                        redundant_indexes.add(j)
+
+            # print(len(fault.branch_sequences), len(redundant_sequences))
             fault.branch_sequences -= set(redundant_sequences)
 
-    def set_order(self):
+        # performance testing:
+        # pr.disable()
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
+        # print("Sequences  %d" % all_sequences)
+
+    def minimize_accessed_addresses(self):
+        """Remove most of the data about accessed addresses
+        and leave only the range limits
+        """
+        print("Minimizing accessed addresses")
         for fault in self.faults.values():
-            for branch_sequence in fault.branch_sequences:
-                if fault.order == 0 or fault.order > len(branch_sequence):
-                    fault.order = len(branch_sequence)
+            accessed = list(fault.accessed_addresses)
+            accessed.sort()
+            redundant = []
+            range_started = False
+            for i in range(len(accessed) - 1):
+                # end of a range
+                if accessed[i + 1] - accessed[i] > 64:
+                    range_started = False
+                    continue
+
+                # start of a range
+                if not range_started:
+                    range_started = True
+                    continue
+
+                # in a range
+                redundant.append(accessed[i])
+            fault.accessed_addresses -= set(redundant)
 
 
 class Collector:
@@ -232,7 +311,6 @@ class Collector:
 
         # process results
         self.results.collect_statistics()
-        self.results.minimize_sequences()
         self.results.set_order()
 
         with open(output, 'w') as out_file:
@@ -333,12 +411,32 @@ def merge_reports(inputs, output, binary):
 
     # re-process results
     merged.total_guards = Collector.set_total_branch_count(binary)
-    merged.minimize_sequences()
     merged.set_order()
     merged.collect_statistics()
 
     with open(output, 'w') as out_file:
         json.dump(merged, out_file, indent=2, cls=SaneJSONEncoder)
+
+
+def minimize_report(input_, output):
+    results = CollectedResults()
+
+    print("Loading")
+    with open(input_, 'r') as in_file:
+        data = json.load(in_file)
+
+    print("Processing data")
+    results.merge(data)
+    results.statistics = data["statistics"]
+    results.crashed_runs = data["errors"]
+    results.set_order()
+
+    results.minimize_sequences()
+    results.minimize_accessed_addresses()
+
+    print("Storing")
+    with open(output, 'w') as out_file:
+        json.dump(results, out_file, indent=2, cls=SaneJSONEncoder)
 
 
 # ===============================
@@ -563,6 +661,9 @@ class Query:
         self.fault_index = [i for i in self.faults]
         self.branch_index = [i for i in self.branches]
 
+    def execute(self):
+        pass
+
     def start(self):
         msg = "\n*** Commands ***\n" \
               "  l: location  s: stats\n" \
@@ -715,6 +816,17 @@ def main():
         required=True
     )
 
+    parser_minimize = subparsers.add_parser('minimize')
+    parser_minimize.add_argument(
+        "input",
+        type=str,
+    )
+    parser_minimize.add_argument(
+        "-o", "--output",
+        type=str,
+        required=True
+    )
+
     # Aggregation
     parser_aggregate = subparsers.add_parser('aggregate')
     parser_aggregate.add_argument(
@@ -761,6 +873,8 @@ def main():
         collector.collect_data(args.output, args.hongg_report, args.binary, args.main_branch)
     elif args.subparser_name == "merge":
         merge_reports(args.inputs, args.output, args.binary)
+    elif args.subparser_name == "minimize":
+        minimize_report(args.input, args.output)
 
     elif args.subparser_name == "aggregate":
         build_aggregated_report(args.input, args.output, args.symbolizer, args.binary,
@@ -768,7 +882,10 @@ def main():
 
     elif args.subparser_name == "query":
         query = Query(args.input, args)
-        query.start()
+        if args.interactive:
+            query.start()
+        else:
+            query.execute()
 
 
 if __name__ == '__main__':
