@@ -223,66 +223,42 @@ class CollectedResults:
         we consider the latter one redundant as the same vulnerability
         could be triggered by a misprediction of a subset of branches in it.
         """
-        print("Minimizing sequences")
-        total = len(self.faults.values())
-        count = 0
-        done = 0
         for fault in self.faults.values():
-            count += 1
-            if count > total / 10:
-                count = 0
-                done += 10
-                print("%d%%" % done)
-
-            redundant_sequences = set()
-            redundant_indexes = set()
-            # all_sequences += len(fault.branch_sequences)
-
             # remove duplicates first and generate a nice list of sorted tuples
-            fault.branch_sequences = set([tuple(sorted(set(s))) for s in fault.branch_sequences])
-
-            # first, convert all sequences to sets - it's faster to work on them
-            sequences = [(s, len(s)) for s in fault.branch_sequences]
-            len_sequences = len(sequences)
+            sequences = set([tuple(set(s)) for s in fault.branch_sequences])
 
             # sort
-            sequences.sort(key=itemgetter(0))
-            sequences.sort(key=itemgetter(1))
+            sequences = list(sequences)
+            sequences.sort(key=lambda x: len(x), reverse=True)
 
             # search for supersets
-            for i in range(len_sequences):
-                si, si_len = sequences[i]
-                for j in range(i + 1, len_sequences):
-                    if j in redundant_indexes:  # the element was already removed
-                        continue
-                    sj, sj_len = sequences[j]
+            sequences_to_keep = []
+            while len(sequences) > 0:
+                top_sequence = sequences.pop()
+                sequences_to_keep.append(top_sequence)
 
-                    # same length, different contents - definitely not a subset
+                not_supersets_of_top = []
+                for other_sequence in sequences[:]:
+                    # same length, different contents - definitely not a superset
                     # (duplicates are already removed)
-                    if si_len == sj_len:
+                    if len(top_sequence) == len(other_sequence):
+                        not_supersets_of_top.append(other_sequence)
                         continue
 
-                    # slow path - subsets
-                    # since the list is sorted, here sj_len > si_len
-                    for element in si:
-                        if element not in sj:
+                    # check for supersets
+                    # since the list is sorted, here len(other_sequence) > len(top_sequence)
+                    for element in top_sequence:
+                        if element not in other_sequence:
+                            not_supersets_of_top.append(other_sequence)
                             break
-                    else:
-                        # found a subset
-                        redundant_sequences.add(sj)
-                        redundant_indexes.add(j)
 
-            # print(len(fault.branch_sequences), len(redundant_sequences))
-            fault.branch_sequences -= set(redundant_sequences)
+                sequences = not_supersets_of_top
 
-        # performance testing:
-        # pr.disable()
-        # s = io.StringIO()
-        # sortby = SortKey.CUMULATIVE
-        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        # ps.print_stats()
-        # print(s.getvalue())
-        # print("Sequences  %d" % all_sequences)
+            fault.branch_sequences = set(sequences_to_keep)
+
+        # after the minimization, some of the data in branches is not valid any more
+        for branch in self.branches.values():
+            branch.faults = set()
 
     def minimize_accessed_addresses(self):
         """Remove most of the data about accessed addresses
