@@ -264,7 +264,6 @@ class CollectedResults:
         """Remove most of the data about accessed addresses
         and leave only the range limits
         """
-        print("Minimizing accessed addresses")
         for fault in self.faults.values():
             accessed = list(fault.accessed_addresses)
             accessed.sort()
@@ -692,8 +691,21 @@ class Query:
         self.fault_index = [i for i in self.faults]
         self.branch_index = [i for i in self.branches]
 
+        # TODO: this is duplication. Merge with the first part of the function
+        self.results = SymbolizedResults()
+        self.results.load(data)
+
     def execute(self):
-        pass
+        if not self.args.output:
+            print("Output file does not exist or not a file")
+            exit(1)
+
+        # Only simple whitelist so far
+        # TODO: More in the future
+        whitelist = self.build_whitelist()
+        with open(self.args.output, 'w') as f:
+            for branch in whitelist:
+                f.write(branch + "\n")
 
     def start(self):
         msg = "\n*** Commands ***\n" \
@@ -801,6 +813,106 @@ class Query:
         print("Type: branch")
         pprint(branch)
 
+    def build_whitelist(self, exec_threshold: int = 100, fault_threshold: int = 100,
+                        include_controlled_offset: bool = True,
+                        include_uncontrolled: bool = False):
+        blacklist: List[str] = []
+
+        # build a list of all branches with too few executions (or no executions)
+        not_covered_branches = []
+        branch_locations = {}
+        for location, branch in self.results.branches.items():
+            for branch_in_binary in branch.branches:
+                branch_locations[branch_in_binary["address"]] = location
+                if branch_in_binary["nonspeculative_execution_count"] < exec_threshold:
+                    not_covered_branches.append(branch_in_binary["address"])
+        blacklist += not_covered_branches
+
+        # build a list of faults to consider
+        fault_list: List[str] = []
+        for key, fault in self.results.faults.items():
+            # we unconditionally include those faults that change the control flow
+            if 2 in fault.types:
+                fault_list.append(key)
+                continue
+
+            # controlled offset
+            if include_controlled_offset and fault.controlled_offset:
+                fault_list.append(key)
+                continue
+
+            # controlled
+            if fault.controlled:
+                fault_list.append(key)
+                continue
+
+            # not enough data to call it uncontrolled
+            if min(fault.fault_counts) < fault_threshold:
+                fault_list.append(key)
+                continue
+
+            # uncontrolled
+            if include_uncontrolled and not fault.controlled and not fault.controlled_offset:
+                fault_list.append(key)
+                continue
+
+        # build a list of all branch sequences that have to be patched
+        all_sequences_set: Set[Tuple[str]] = set()
+        for key in fault_list:
+            raw_faults = self.results.faults[key].faults
+            for f in raw_faults:
+                for sequence in f["branch_sequences"]:
+                    all_sequences_set.add(tuple(sequence))
+
+        # removed the sequences that are already covered by non-tested branches
+        # (those are always patched)
+        all_sequences: List[Tuple[str]] = list(all_sequences_set)
+        for sequence in all_sequences:
+            for branch in not_covered_branches:
+                if branch in sequence:
+                    all_sequences_set.remove(sequence)
+                    break
+
+        # build a map of which branches cover which sequences
+        # e.g., for [(A), (A, B), (B)], A covers 1 and 2, B covers 2 and 3
+        all_sequences = list(all_sequences_set)
+        branch_map: Dict[int] = {}
+        for index, sequence in enumerate(all_sequences):
+            for branch in sequence:
+                map_entry = branch_map.setdefault(branch, [])
+                map_entry.append(index)
+
+        # convert the map into a list for later processing
+        unprocessed_branches = []
+        for branch, value in branch_map.items():
+            unprocessed_branches.append((branch, value))
+
+        # keep popping out the branches with the largest coverage until we reach full coverage
+        while len(unprocessed_branches) > 0:
+            unprocessed_branches.sort(key=lambda x: len(x[1]))
+            top = unprocessed_branches.pop()
+            blacklist.append(top[0])
+            for branch in unprocessed_branches[:]:
+                for index in top[1]:
+                    if index in branch[1]:
+                        branch[1].remove(index)
+                        if len(branch[1]) == 0:
+                            unprocessed_branches.remove(branch)
+
+        blacklist_locations = set()
+        for b in blacklist:
+            if b not in branch_locations:
+                print("Not found: " + b)
+                continue
+            blacklist_locations.add(branch_locations[b])
+
+        whitelist = []
+        for branch in self.results.branches:
+            if branch not in blacklist_locations:
+                whitelist.append(branch)
+
+        return sorted(whitelist)
+
 
 def main():
     parser = ArgumentParser(description='', add_help=False)
@@ -894,6 +1006,10 @@ def main():
     parser_query.add_argument(
         "-i", "--interactive",
         action='store_true'
+    )
+    parser_query.add_argument(
+        "-o", "--output",
+        type=str,
     )
 
     args = parser.parse_args()

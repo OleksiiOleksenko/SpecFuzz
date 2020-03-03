@@ -61,6 +61,25 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(data["faults"], loaded["faults"])
         self.assertEqual(data["branches"], loaded["branches"])
 
+    def test_whitelist(self):
+        expected_controlled = ['loc-10b', 'loc-12b', 'loc-13b', 'loc-15b', 'loc-16b', 'loc-17b',
+                               'loc-18b', 'loc-4b', 'loc-5b', 'loc-6b', 'loc-8b', 'loc-9b']
+        expected_controlled_offset = ['loc-10b', 'loc-12b', 'loc-13b', 'loc-15b', 'loc-16b',
+                                      'loc-17b', 'loc-18b', 'loc-4b', 'loc-5b', 'loc-6b', 'loc-8b']
+        expected_uncontrolled = ['loc-10b', 'loc-12b', 'loc-13b', 'loc-15b', 'loc-16b', 'loc-17b',
+                                 'loc-18b', 'loc-4b', 'loc-5b', 'loc-6b', 'loc-9b']
+
+        args = {}
+        query = analyzer.Query("./aggregated-sample.json", args)
+        whitelist = query.build_whitelist(exec_threshold=10, fault_threshold=10, include_controlled_offset=False)
+        self.assertEqual(whitelist, expected_controlled)
+
+        whitelist = query.build_whitelist(exec_threshold=10, fault_threshold=10)
+        self.assertEqual(whitelist, expected_controlled_offset)
+
+        whitelist = query.build_whitelist(exec_threshold=10, fault_threshold=10,
+                                          include_controlled_offset=True, include_uncontrolled=True)
+        self.assertEqual(whitelist, expected_uncontrolled)
 
 
 if __name__ == '__main__':
