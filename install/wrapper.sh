@@ -179,7 +179,7 @@ if [ -n "$SOURCE" ] && [ -z "$ASM" ] && [ -z "$DEVNULL" ]; then
     if [ -z "$NO_CLEANUP" ]; then rm ${OUTPUT%.o}.bc; fi
 
     if [ -z "$CREATE_ASM" ]; then
-        cmd=( $CC -Wno-unused-command-line-argument $CFLAGS $ASAN_LDFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS -lspecfuzz)
+        cmd=( $CC -Wno-unused-command-line-argument -Wl,--undefined=specfuzz_cov_trace_pc $CFLAGS $ASAN_LDFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS -lspecfuzz)
         if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
         "${cmd[@]}"
     else
@@ -193,7 +193,7 @@ else
         I=
     fi
 
-    cmd=( $CC $ASAN_LDFLAGS $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS -lspecfuzz)
+    cmd=( $CC -Wl,--undefined=specfuzz_cov_trace_pc $ASAN_LDFLAGS $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS -lspecfuzz)
     if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
     "${cmd[@]}"
 fi
