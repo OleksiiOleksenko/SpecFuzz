@@ -59,10 +59,20 @@ class Fault:
             "types": list(self.types)
         }
 
+    def load(self, data: Dict):
+        self.accessed_addresses = set([int(i) for i in data["accessed_addresses"]])
+        self.offsets = set([int(i) for i in data["offsets"]])
+        for branch_sequence in data["branch_sequences"]:
+            self.branch_sequences.add(tuple([int(b, 16) for b in branch_sequence]))
+        self.order = int(data["order"])
+        self.fault_count = int(data["fault_count"])
+        self.controlled = bool(data["controlled"])
+        self.controlled_offset = bool(data["controlled_offset"])
+        self.types = set([int(i) for i in data["types"]])
+
     def update(self, update):
         assert (self.address == update.address), \
-            "Updated address does not match: {} and {}" \
-                .format(self.address, update.address)
+            "Updated address does not match: {} and {}".format(self.address, update.address)
 
         # define controllability:
         # a fault is controllable if there is at least one experiment where the accessed addresses
@@ -101,6 +111,11 @@ class Branch:
             "nonspeculative_execution_count": self.nonspeculative_execution_count,
         }
 
+    def load(self, data):
+        self.faults = set([int(i, 16) for i in data["faults"]])
+        self.fault_count = int(data["fault_count"])
+        self.nonspeculative_execution_count = int(data["nonspeculative_execution_count"])
+
     def update(self, branch_update: 'Branch'):
         assert (self.address == branch_update.address)
         self.fault_count += 1
@@ -134,15 +149,19 @@ class CollectedResults:
 
     def merge(self, full_data):
         for address, data in full_data["branches"].items():
-            branch = self.branches.setdefault(int(address, 16), Branch(int(address, 16)))
+            branch = self.branches.setdefault(int(address), Branch(int(address)))
             branch.nonspeculative_execution_count += data["nonspeculative_execution_count"]
             branch.fault_count += data["fault_count"]
             for f in data.get("faults", []):
                 branch.faults.add(int(f, 16))
 
         for address, data in full_data["faults"].items():
-            fault = self.faults.setdefault(int(address, 16), Fault(int(address, 16)))
+            fault = self.faults.setdefault(int(address), Fault(int(address)))
             fault.fault_count += data["fault_count"]
+            fault.order = data["order"] if fault.order == 0 or fault.order > data["order"] \
+                else fault.order
+            fault.controlled |= bool(data["controlled"])
+            fault.controlled_offset |= bool(data["controlled_offset"])
             for a in data["accessed_addresses"]:
                 fault.accessed_addresses.add(a)
             for a in data["offsets"]:
@@ -163,6 +182,20 @@ class CollectedResults:
             "branches": self.branches,
             "faults": self.faults,
         }
+
+    def load(self, results_json: Dict):
+        for key, data in results_json["branches"].items():
+            branch = Branch(int(key))
+            branch.load(data)
+            self.branches[key] = branch
+
+        for key, data in results_json["faults"].items():
+            fault = Fault(int(key))
+            fault.load(data)
+            self.faults[key] = fault
+
+        self.crashed_runs = results_json["errors"]
+        self.statistics = results_json["statistics"]
 
     def collect_statistics(self):
         # coverage
@@ -190,13 +223,6 @@ class CollectedResults:
         we consider the latter one redundant as the same vulnerability
         could be triggered by a misprediction of a subset of branches in it.
         """
-        # performance testing:
-        # import cProfile, pstats, io
-        # from pstats import SortKey
-        # pr = cProfile.Profile()
-        # pr.enable()
-        # all_sequences = 0
-
         print("Minimizing sequences")
         total = len(self.faults.values())
         count = 0
@@ -426,9 +452,7 @@ def minimize_report(input_, output):
         data = json.load(in_file)
 
     print("Processing data")
-    results.merge(data)
-    results.statistics = data["statistics"]
-    results.crashed_runs = data["errors"]
+    results.load(data)
     results.set_order()
 
     results.minimize_sequences()
@@ -508,6 +532,17 @@ class SymbolizedFault:
             "order": self.order,
         }
 
+    def load(self, data: Dict):
+        self.location = data["location"].split(" < ")
+        self.faults = data["faults"]
+        self.accessed_addresses = set([int(i) for i in data["accessed_addresses"]])
+        self.offsets = set([int(i) for i in data["offsets"]])
+        self.fault_counts = [int(i) for i in data["fault_counts"]]
+        self.controlled = bool(data["controlled"])
+        self.controlled_offset = bool(data["controlled_offset"])
+        self.types = set([int(i) for i in data["types"]])
+        self.order = int(data["order"])
+
     def get_location(self) -> str:
         return " < ".join(self.location)
 
@@ -553,6 +588,14 @@ class SymbolizedBranch:
             "nonspeculative_execution_counts": self.nonspeculative_execution_counts
         }
 
+    def load(self, data):
+        self.location = data["location"].split(" < ")
+        self.branches = data["branches"]
+        self.symbolized_faults = data["symbolized_faults"]
+        self.fault_counts = [int(c) for c in data["fault_counts"]]
+        self.nonspeculative_execution_counts = \
+            [int(c) for c in data["nonspeculative_execution_counts"]]
+
     def get_location(self) -> str:
         return " < ".join(self.location)
 
@@ -586,6 +629,17 @@ class SymbolizedResults:
     def add_fault(self, key: str, locations: List[str], serialized_fault_data: Dict):
         symbolized_fault = self.faults.setdefault(key, SymbolizedFault(locations))
         symbolized_fault.faults.append(serialized_fault_data)
+
+    def load(self, results_json: Dict):
+        for key, data in results_json["branches"].items():
+            branch = SymbolizedBranch([])
+            branch.load(data)
+            self.branches[key] = branch
+
+        for key, data in results_json["faults"].items():
+            fault = SymbolizedFault([])
+            fault.load(data)
+            self.faults[key] = fault
 
 
 def build_aggregated_report(input_, output, symbolizer_path, binary, consider_callsite=False):
@@ -648,6 +702,7 @@ class Query:
     branches: Dict
     fault_index: List[str]
     branch_index: List[str]
+    results: SymbolizedResults
 
     def __init__(self, input_file, args):
         self.args = args

@@ -1,0 +1,305 @@
+{
+  "branches": {
+    "loc-1b":  {"location": "", "branches": [{"address": "1b", "nonspeculative_execution_count": 0}], "symbolized_faults": [], "fault_counts": [0], "nonspeculative_execution_counts": [0]},
+    "loc-2b":  {"location": "", "branches": [{"address": "2b", "nonspeculative_execution_count": 0}], "symbolized_faults": [], "fault_counts": [1, 0], "nonspeculative_execution_counts": [0, 11]},
+    "loc-3b":  {"location": "", "branches": [{"address": "3b", "nonspeculative_execution_count": 2}], "symbolized_faults": [], "fault_counts": [0], "nonspeculative_execution_counts": [2]},
+    "loc-4b":  {"location": "", "branches": [{"address": "4b", "nonspeculative_execution_count": 11}], "symbolized_faults": [], "fault_counts": [0], "nonspeculative_execution_counts": [11]},
+    "loc-5b":  {"location": "", "branches": [{"address": "5b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-6b":  {"location": "", "branches": [{"address": "6b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-7b":  {"location": "", "branches": [{"address": "7b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-8b":  {"location": "", "branches": [{"address": "8b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-9b":  {"location": "", "branches": [{"address": "9b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-10b": {"location": "", "branches": [{"address": "10b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-11b": {"location": "", "branches": [{"address": "11b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-12b": {"location": "", "branches": [{"address": "12b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-13b": {"location": "", "branches": [{"address": "13b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-14b": {"location": "", "branches": [{"address": "14b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-15b": {"location": "", "branches": [{"address": "15b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-16b": {"location": "", "branches": [{"address": "16b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-17b": {"location": "", "branches": [{"address": "17b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-18b": {"location": "", "branches": [{"address": "18b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]},
+    "loc-19b": {"location": "", "branches": [{"address": "19b", "nonspeculative_execution_count": 101}], "symbolized_faults": [], "fault_counts": [101], "nonspeculative_execution_counts": [101]}
+  },
+  "faults": {
+    "f1": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "5b",
+              "6b",
+              "7b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 1,
+          "controlled": false,
+          "controlled_offset": false,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        1
+      ],
+      "controlled": false,
+      "controlled_offset": false,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f2": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "6b",
+              "7b",
+              "8b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 11,
+          "controlled": false,
+          "controlled_offset": false,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        11
+      ],
+      "controlled": false,
+      "controlled_offset": false,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f3": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "7b",
+              "8b",
+              "9b"
+            ],
+            [
+              "8b",
+              "9b",
+              "10b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 11,
+          "controlled": false,
+          "controlled_offset": true,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        11
+      ],
+      "controlled": false,
+      "controlled_offset": true,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f4": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "11b",
+              "12b",
+              "13b"
+            ],
+            [
+              "11b",
+              "12b",
+              "14b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 11,
+          "controlled": true,
+          "controlled_offset": true,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        11
+      ],
+      "controlled": true,
+      "controlled_offset": true,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f5": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "14b",
+              "15b",
+              "16b"
+            ],
+            [
+              "14b",
+              "15b",
+              "17b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 11,
+          "controlled": true,
+          "controlled_offset": true,
+          "types": [
+            11
+          ]
+        },
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "11b",
+              "17b"
+            ],
+            [
+              "11b",
+              "18b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 11,
+          "controlled": true,
+          "controlled_offset": true,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        11
+      ],
+      "controlled": true,
+      "controlled_offset": true,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f6": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "1b",
+              "6b",
+              "7b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 1,
+          "controlled": false,
+          "controlled_offset": false,
+          "types": [
+            11
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        1
+      ],
+      "controlled": false,
+      "controlled_offset": false,
+      "types": [
+        1
+      ],
+      "order": 1
+    },
+    "f7": {
+      "location": "",
+      "faults": [
+        {
+          "address": "",
+          "accessed_addresses": [],
+          "offsets": [],
+          "branch_sequences": [
+            [
+              "19b"
+            ]
+          ],
+          "order": 1,
+          "fault_count": 1,
+          "controlled": false,
+          "controlled_offset": false,
+          "types": [
+            2
+          ]
+        }
+      ],
+      "accessed_addresses": [],
+      "offsets": [],
+      "fault_counts": [
+        101
+      ],
+      "controlled": false,
+      "controlled_offset": false,
+      "types": [
+        2
+      ],
+      "order": 1
+    }
+  }
+}

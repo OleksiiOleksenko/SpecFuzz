@@ -1,0 +1,45 @@
+{
+  "errors": [],
+  "statistics": {
+    "coverage": [
+      12.34,
+      2345
+    ],
+    "branches": 1,
+    "faults": 1
+  },
+  "branches": {
+    "10": {
+      "address": "0xa",
+      "faults": [],
+      "fault_count": 1,
+      "nonspeculative_execution_count": 2
+    }
+  },
+  "faults": {
+    "17": {
+      "address": "0x11",
+      "accessed_addresses": [
+        42
+      ],
+      "offsets": [],
+      "branch_sequences": [
+        [
+          "0xa",
+          "0xb"
+        ],
+        [
+          "0xc"
+        ]
+      ],
+      "order": 1,
+      "fault_count": 3,
+      "controlled": false,
+      "controlled_offset": false,
+      "types": [
+        2,
+        11
+      ]
+    }
+  }
+}
