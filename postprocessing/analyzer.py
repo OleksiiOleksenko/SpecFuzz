@@ -299,7 +299,13 @@ class Collector:
 
         # connect to the SUT's output and process it, line by line
         while True:
-            line = sys.stdin.readline()
+            try:
+                line = sys.stdin.readline()
+            except UnicodeDecodeError:
+                print("Cannot process non-unicode data.\n"
+                      "Set the required encoding in the PYTHONIOENCODING environment variable")
+                exit(1)
+
             if not line:
                 break  # EOF
             if not self.process_line(line):
