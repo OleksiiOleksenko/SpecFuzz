@@ -92,3 +92,31 @@ Tests depend on bats ([Install bats](https://github.com/sstephenson/bats/wiki/In
 $ cd tests
 $ ./run.sh
 ```
+
+
+# Cite us!
+
+Paper:
+
+```
+@InProceedings{Oleksenko:2020,
+  author={Oleksenko, Oleksii and Trach, Bohdan and Silberstein, Mark and Fetzer, Christof},
+  title={{SpecFuzz: Bringing Spectre-type vulnerabilities to the surface}},
+  booktitle={29th $\{$USENIX$\}$ Security Symposium ($\{$USENIX$\}$ Security)},
+  year={2020}
+}
+```
+
+Technical Report:
+
+```
+@Article{Oleksenko:2019,
+  author={Oleksenko, Oleksii and Trach, Bohdan and Silberstein, Mark and Fetzer, Christof},
+  title={{SpecFuzz: Bringing Spectre-type vulnerabilities to the surface}},
+  journal = "",
+  archivePrefix = "arXiv",
+  eprint = {1905.10311},
+  primaryClass = "",
+  year = {2019},
+}
+```
