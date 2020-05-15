@@ -28,14 +28,14 @@
 static char data[MAX_DATA];
 
 static http_parser_settings settings = {
-        .on_message_begin = 0,
-        .on_headers_complete = 0,
-        .on_message_complete = 0,
-        .on_header_field = 0,
-        .on_header_value = 0,
-        .on_url = 0,
-        .on_status = 0,
-        .on_body = 0
+    .on_message_begin = 0,
+    .on_headers_complete = 0,
+    .on_message_complete = 0,
+    .on_header_field = 0,
+    .on_header_value = 0,
+    .on_url = 0,
+    .on_status = 0,
+    .on_body = 0
 };
 
 int main(int argc, char **argv) {
@@ -63,9 +63,6 @@ int main(int argc, char **argv) {
 
     fread(data, 1, data_len, fp);
     fclose(fp);
-
-    //printf("file: %s\n", data);
-    //printf("file: %lu\n", data_len);
 
     http_parser *parser = malloc(sizeof(http_parser));
     http_parser_init(parser, HTTP_REQUEST);

@@ -24,7 +24,7 @@ void LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 int main(int argc, char **argv) {
     if (argc != 2) {
         fprintf(stderr, "Exactly one argument is expected.\n");
-        exit(EXIT_FAILURE);v
+        exit(EXIT_FAILURE);
     }
 
     FILE *f = fopen(argv[1], "r");
