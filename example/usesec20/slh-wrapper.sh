@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# TODO: this script is in a dire need of documentation
-
 set -e
 
 LLVM_CONFIG=${LLVM_CONFIG:-"llvm-7.0.1-config"}
@@ -20,17 +18,13 @@ OUTPUT=""
 OPT=""
 
 # configure the compiler
-LLCFLAGS="-x86-specfuzz -disable-tail-calls"
-ASAN_CFLAGS="-fsanitize=address -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-use-after-scope=0 "
-ASAN_LDFLAGS="-fsanitize=address"
-COVERAGE_FLAGS=""
+LLCFLAGS="-x86-speculative-load-hardening -x86-speculative-load-hardening-indirect=false"
 
-flag_coverage_only=0
-flag_coverage=0
-flag_collect=0
-flag_function_list=0
 flag_branch_list=0
-flag_serialization_list=0
+flag_load_list=0
+debug=0
+flag_lfence=0
+flag_file_list=0
 
 while [ "$#" -gt 0 ]; do
     case $1 in
@@ -49,6 +43,9 @@ while [ "$#" -gt 0 ]; do
         ;;
         *.o|*.s|*.S|*.a)
             INPUT="$INPUT $1"
+        ;;
+        -pattern-detection|-stats|-debug)
+            OPTFLAGS="$OPTFLAGS $1"
         ;;
         -x)
             LANGUAGE="$1 $2"
@@ -78,63 +75,43 @@ while [ "$#" -gt 0 ]; do
         -S)
             CREATE_ASM=1
         ;;
-        --collect)
-            if [ $flag_collect == 0 ]; then
-                if [ ! -f $2 ]; then
-                    touch $2
-                fi
-                LLCFLAGS+=" -x86-specfuzz-collect-functions-into=$2"
-                flag_collect=1
-            fi
-            shift
-        ;;
-        --function-list)
-            if [ $flag_function_list == 0 ]; then
-                LLCFLAGS+=" -x86-specfuzz-function-list=$2"
-                flag_function_list=1
-            fi
-            shift
-        ;;
-        --branch-list)
-            if [ $flag_branch_list == 0 ]; then
-                LLCFLAGS+=" -x86-specfuzz-branch-list=$2"
-                flag_branch_list=1
-            fi
-            shift
-        ;;
-        --serialization-list)
-            if [ $flag_serialization_list == 0 ]; then
-                LLCFLAGS+=" -x86-specfuzz-serialization-list=$2"
-                flag_serialization_list=1
-            fi
-            shift
-        ;;
         --echo)
             ECHO=1
         ;;
         --debug-pass)
-            LLCFLAGS+=" -debug-only=x86-specfuzz"
+            if [ $debug == 0 ]; then
+                LLCFLAGS+=" -debug-only=x86-speculative-load-hardening -stats"
+                debug=1
+            fi
         ;;
         --no-wrapper-cleanup)
             NO_CLEANUP=1
         ;;
-        --disable-asan)
-            ASAN_CFLAGS=
-            ASAN_LDFLAGS=
-        ;;
-        --enable-coverage)
-            if [ $flag_coverage == 0 ]; then
-                ASAN_CFLAGS="$ASAN_CFLAGS $COVERAGE_FLAGS"
-                ASAN_LDFLAGS="$ASAN_LDFLAGS $COVERAGE_FLAGS"
-                flag_coverage=1
+        --whitelist)
+            if [ $flag_branch_list == 0 ]; then
+                LLCFLAGS+=" -x86-speculative-load-hardening-whitelist-branches=$2"
+                flag_branch_list=1
             fi
+            shift
         ;;
-        --coverage-only)
-            if [ $flag_coverage_only == 0 ]; then
-                ASAN_CFLAGS="$ASAN_CFLAGS $COVERAGE_FLAGS"
-                ASAN_LDFLAGS="$ASAN_LDFLAGS $COVERAGE_FLAGS"
-                LLCFLAGS+=" -x86-specfuzz-coverage-only"
-                flag_coverage_only=1
+        --whitelist-loads)
+            if [ $flag_load_list == 0 ]; then
+                LLCFLAGS+=" -x86-speculative-load-hardening-whitelist-loads=$2"
+                flag_load_list=1
+            fi
+            shift
+        ;;
+        --whitelist-files)
+            if [ $flag_file_list == 0 ]; then
+                LLCFLAGS+=" -x86-speculative-load-hardening-whitelist-modules=$2"
+                flag_file_list=1
+            fi
+            shift
+        ;;
+        --lfence)
+            if [ $flag_lfence == 0 ]; then
+                LLCFLAGS+=" -x86-speculative-load-hardening-lfence"
+                flag_lfence=1
             fi
         ;;
         -V|-v|-qversion)
@@ -160,16 +137,8 @@ if [ -z "$OUTPUT" ]; then
     fi
 fi
 
-CFLAGS="$CFLAGS -mno-red-zone"
-CFLAGS="$CFLAGS -mno-avx -mno-avx2 "
-
-
-if ! [ $CREATE_OBJECT ]; then
-    LDFLAGS="$LDFLAGS -rdynamic"
-fi
-
 if [ -n "$SOURCE" ] && [ -z "$ASM" ] && [ -z "$DEVNULL" ]; then
-    cmd=( $CC $ASAN_CFLAGS $CFLAGS $GGDB $I $LANGUAGE -c -emit-llvm $INPUT -o ${OUTPUT%.o}.bc )
+    cmd=( $CC $CFLAGS $GGDB $I $LANGUAGE -c -emit-llvm $INPUT -o ${OUTPUT%.o}.bc )
     if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
     "${cmd[@]}"
 
@@ -179,7 +148,7 @@ if [ -n "$SOURCE" ] && [ -z "$ASM" ] && [ -z "$DEVNULL" ]; then
     if [ -z "$NO_CLEANUP" ]; then rm ${OUTPUT%.o}.bc; fi
 
     if [ -z "$CREATE_ASM" ]; then
-        cmd=( $CC -Wno-unused-command-line-argument -Wl,--undefined=specfuzz_cov_trace_pc $CFLAGS $ASAN_LDFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS -lspecfuzz)
+        cmd=( $CC -Wno-unused-command-line-argument $CFLAGS ${OUTPUT%.o}.s -o $OUTPUT $LDFLAGS )
         if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
         "${cmd[@]}"
     else
@@ -193,7 +162,7 @@ else
         I=
     fi
 
-    cmd=( $CC -Wl,--undefined=specfuzz_cov_trace_pc $ASAN_LDFLAGS $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS -lspecfuzz)
+    cmd=( $CC $CFLAGS $GGDB $I $LANGUAGE $INPUT -o $OUTPUT $LDFLAGS )
     if [ -n "$ECHO" ]; then echo "${cmd[@]}"; fi
     "${cmd[@]}"
 fi

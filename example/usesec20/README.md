@@ -18,3 +18,13 @@ Sources:
 * HTTP: https://github.com/nodejs/http-parser
 * libHTP: https://github.com/OISF/libhtp
 * libYAML: https://github.com/yaml/libyaml
+
+
+SLH: For convenience, you could use a compiler wrapper `slh-wrapper.sh` that invokes SLH with all correct flags.
+To install it, do the following:
+
+```shell script
+	cp slh-wrapper.sh /usr/bin/clang-slh
+	cp slh-wrapper.sh /usr/bin/clang-slh++
+	sed -i -e 's:/clang$$:/clang++:g' /usr/bin/clang-slh++
+```
