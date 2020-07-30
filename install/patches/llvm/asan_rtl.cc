@@ -171,6 +171,7 @@ typedef void (*func_ptr_t)(void);
 func_ptr_t specfuzz_report = 0;
 long* nesting_level;
 
+#ifdef __x86_64__  
 #define SF_REPORT(addr)                                                         \
     void *offending_instruction = __builtin_return_address(0) + 8;              \
     __asm__ volatile("movq %0, %%rdi\n"                                         \
@@ -178,7 +179,9 @@ long* nesting_level;
       "callq %2\n"                                                              \
       : : "g" (addr), "g" (offending_instruction), "m" (specfuzz_report)        \
       : "rdi", "rsi" );
-
+#else
+#define SF_REPORT(addr) return; // potential 32-bit implementation
+#endif
 
 #define ASAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, exp_arg, fatal) \
     if (SANITIZER_MYRIAD2 && !AddrIsInMem(addr) && !AddrIsInShadow(addr))      \
