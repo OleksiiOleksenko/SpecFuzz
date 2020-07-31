@@ -1,9 +1,9 @@
 ifndef SRC
-$(error SRC is not specified)
+$(warning warning: SRC is not specified (ignore this warning if the benchmark overwrites the build targets.))
 endif
 
 ifndef HONGG_SRC
-$(error HONGG_SRC is not specified)
+$(error HONGG_SRC is not specified. Run: `$ export HONGG_SRC=/path/to/honggfuzz/src`)
 endif
 
 CFLAGS += $(if $(OPT),$(OPT),-O3) -ggdb
