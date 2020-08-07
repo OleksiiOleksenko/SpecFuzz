@@ -99,7 +99,7 @@ void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
         fprintf(stderr, "\n");
 #endif
 
-#if ENABLE_COVERAGE == 1
+#if COVERAGE_MEMORY_ERRORS == 1
         specfuzz_cov_vuln(instruction);
 #endif
         STAT_INCREMENT(stat_signal_overflow);

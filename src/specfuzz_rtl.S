@@ -663,7 +663,7 @@ specfuzz_report:
     call _IO_putc
 #endif  // REPORT_MEMORY_ERRORS
 
-#if ENABLE_COVERAGE == 1
+#if COVERAGE_MEMORY_ERRORS == 1
     // report the vulnerability to the fuzzer
     movq tmp_gpr1, %rdi
     call specfuzz_cov_vuln
@@ -694,6 +694,7 @@ specfuzz_report:
 .type	specfuzz_report_corrupted_code_pointer, @function
 specfuzz_report_corrupted_code_pointer:
     ASSERT nesting_level je $0 specfuzz_exit_unknown_corruption
+    movq %rsi, tmp_gpr1  // save the PC for a later use
 #if REPORT_CONTROL_FLOW_ERRORS == 1
     movq store_log_bp, %r9
     movq CHECKPOINT_STACK_PC_OFFSET(%r9), %r9   // latest speculated branch
@@ -704,6 +705,10 @@ specfuzz_report_corrupted_code_pointer:
     mov stderr, %rdi
     mov $0, %eax
     call _IO_fprintf
+#endif
+#if COVERAGE_CONTROL_FLOW_ERRORS == 1
+    movq tmp_gpr1, %rdi
+    call specfuzz_cov_vuln
 #endif
     callq specfuzz_rlbk_forced
 
