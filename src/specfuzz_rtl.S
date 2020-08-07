@@ -224,7 +224,7 @@ specfuzz_chkp:
     ASSERT nesting_level jl $0 specfuzz_exit_corrupted_nesting_level
 
     // do not start a new simulation if we've reached the max nesting depth
-#if ENABLE_PRIORITEZED_SIMULATION == 1
+#if ENABLE_PRIORITIZED_SIMULATION == 1
     movq max_nesting_level, %r15
     cmpq %r15, nesting_level
 #else
@@ -257,7 +257,7 @@ specfuzz_chkp:
             pushq %r11
             movq %r15, %rdi
             callq specfuzz_cov_trace_pc
-#if ENABLE_PRIORITEZED_SIMULATION == 1
+#if ENABLE_PRIORITIZED_SIMULATION == 1
             # every Nth run executes up to order log4(N) + 1
             cmpq $0, branch_execution_count
             je .L10
@@ -269,7 +269,7 @@ specfuzz_chkp:
             .L10:
                 movq $1, max_nesting_level
             .L11:
-#endif  // ENABLE_PRIORITEZED_SIMULATION
+#endif  // ENABLE_PRIORITIZED_SIMULATION
             popq %r11
             popq %rdi
 #endif  // ENABLE_COVERAGE
