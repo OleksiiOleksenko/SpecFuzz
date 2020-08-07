@@ -587,8 +587,8 @@ specfuzz_report:
     // save the PC for a later use
     movq %rsi, tmp_gpr1
 
-#if ENABLE_PRINT == 1
-#if ENABLE_PRINT_OFFSET == 1
+#if REPORT_MEMORY_ERRORS == 1
+#if REPORT_WITH_OFFSET == 1
     // get the corresponding address in ASan's shadow memory
     mov %rdi, %rcx
     shr $0x3, %rcx
@@ -631,7 +631,7 @@ specfuzz_report:
 #else
     movq $0, %r8  // offset
     movq %rdi, %rcx // accessed address
-#endif  // ENABLE_PRINT_OFFSET
+#endif  // REPORT_WITH_OFFSET
 
     // report the detected violation
     movq store_log_bp, %r9
@@ -661,7 +661,7 @@ specfuzz_report:
     movq stderr, %rsi
     movl $10, %edi
     call _IO_putc
-#endif  // ENABLE_PRINT
+#endif  // REPORT_MEMORY_ERRORS
 
 #if ENABLE_COVERAGE == 1
     // report the vulnerability to the fuzzer
@@ -694,7 +694,7 @@ specfuzz_report:
 .type	specfuzz_report_corrupted_code_pointer, @function
 specfuzz_report_corrupted_code_pointer:
     ASSERT nesting_level je $0 specfuzz_exit_unknown_corruption
-#if ENABLE_PRINT == 1
+#if REPORT_CONTROL_FLOW_ERRORS == 1
     movq store_log_bp, %r9
     movq CHECKPOINT_STACK_PC_OFFSET(%r9), %r9   // latest speculated branch
     movq $0, %r8                                // offset
