@@ -91,7 +91,7 @@ void instrumentClearNewCov() {
 }
 
 void specfuzz_cov_vuln(uintptr_t pc) {
-    uint64_t index = pc & COVERAGE_INDEX_MASK;
+    uint64_t index = (pc & VULN_MAP_INDEX_MASK) >> VULN_MAP_INDEX_OFFSET;
     uint8_t prev = feedback->vulnMap[index];
     if (prev == 0U) {
         ATOMIC_PRE_INC_RELAXED(feedback->pidFeedbackPc[my_thread_no]);
