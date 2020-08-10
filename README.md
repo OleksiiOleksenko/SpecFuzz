@@ -78,6 +78,9 @@ $ cat results.json   # raw results of fuzzing
       "faults": [
         "0x530a48"
 ```
+
+**Important**: fuzz only on a single thread (`-n 1`). In the current implementation, the detected errors are reported into `stderr` and the analyzer cannot correctly separate results from different threads.
+
 Process the results:
 ```bash
 $ analyzer aggregate results.json -s $(llvm-7.0.1-config --bindir)/llvm-symbolizer -b ./fuzz -o aggregated.json
