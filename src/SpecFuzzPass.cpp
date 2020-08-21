@@ -535,12 +535,29 @@ auto X86SpecFuzzPass::visitIndirectBranch(MachineInstr &MI, MachineBasicBlock &P
     DebugLoc Loc = MI.getDebugLoc();
 
     preserveRegister(Parent, MI, Loc, X86::RDI, "tmp_gpr1");
-    BuildMI(Parent, MI, Loc, TII->get(X86::MOV64rm), X86::RDI)
-        .add(MI.getOperand(X86::AddrBaseReg))
-        .add(MI.getOperand(X86::AddrScaleAmt))
-        .add(MI.getOperand(X86::AddrIndexReg))
-        .add(MI.getOperand(X86::AddrDisp))
-        .add(MI.getOperand(X86::AddrSegmentReg));
+
+    // Move the jump address into RDI for checking
+    // Note: this switch only handles 64-bit addresses. Not sure if Clang can generate
+    // other sizes. If it ever does, the corresponding cases would need to be
+    // added.
+    switch (MI.getOpcode()) {
+        case X86::JMP64r:
+            BuildMI(Parent, MI, Loc, TII->get(X86::MOV64rr), X86::RDI)
+                .addReg(MI.getOperand(0).getReg());
+            break;
+        case X86::JMP64m:
+            BuildMI(Parent, MI, Loc, TII->get(X86::MOV64rm), X86::RDI)
+                .add(MI.getOperand(X86::AddrBaseReg))
+                .add(MI.getOperand(X86::AddrScaleAmt))
+                .add(MI.getOperand(X86::AddrIndexReg))
+                .add(MI.getOperand(X86::AddrDisp))
+                .add(MI.getOperand(X86::AddrSegmentReg));
+            break;
+        default:
+            llvm_unreachable("Unexpected indirect jump type");
+    }
+
+    // Check if the pointer has been speculatively corrupted
     addCallRuntimeFunction(Parent, MI, Loc, "specfuzz_check_code_pointer");
     restoreRegister(Parent, MI, Loc, X86::RDI, "tmp_gpr1");
     return true;

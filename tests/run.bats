@@ -79,6 +79,23 @@ Hello World!" ]
     [[ "$output" == *"70" ]]
 }
 
+@test "[$BATS_TEST_NUMBER] Acceptance: Indirect Jump" {
+    NAME=acceptance-switch
+
+    CC=clang-sf CFLAGS="-O0" make ${NAME}
+    run bash -c "./${NAME} 0"
+    [ "$status" -eq 0 ]
+    run bash -c "./${NAME} 3"
+    [ "$status" -eq 7 ]
+
+    CC=clang-sf CFLAGS="-O3" make ${NAME}
+    run bash -c "./${NAME} 0"
+    [ "$status" -eq 0 ]
+    run bash -c "./${NAME} 3"
+    [ "$status" -eq 7 ]
+
+}
+
 @test "[$BATS_TEST_NUMBER] Runtime: Checkpointing function does not introduce corruptions" {
     NAME=rtl_chkp
     asm_test
