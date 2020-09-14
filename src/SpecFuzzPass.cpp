@@ -588,6 +588,8 @@ auto X86SpecFuzzPass::visitWrite(MachineInstr &MI, MachineBasicBlock &Parent) ->
     // Pushes are a special case as the address is always in RSP
     if (isPush(MI.getOpcode()))
         return visitPush(MI, Parent);
+    if(MI.getOpcode() == X86::MFENCE)
+        return false;
 
     LLVM_DEBUG(dbgs() << "Instrumenting store: " << MI);
     DebugLoc Loc = MI.getDebugLoc();
