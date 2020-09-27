@@ -23,8 +23,9 @@
 .extern stderr
 .extern specfuzz_cov_trace_pc
 .extern specfuzz_cov_vuln
+.extern specfuzz_seed_input
 
-.set CHECKPOINT_STACK_SIZE, (4096 * 25)
+.set CHECKPOINT_STACK_SIZE, (4096 * 64)
 .set SPECULATION_WINDOW, 250
 #ifndef MAX_NESTING_LEVEL
 .set MAX_NESTING_LEVEL, 1
@@ -146,6 +147,7 @@ asan_rtl_frame:                 .quad   0
 
 // Error messages
 error_checkpoint_stack_overflow:    .string     "[SF] Error: overflow of Checkpoint Stack\n"
+error_corrupted_checkpoint_stack:   .string     "[SF] Error: Corruption of Checkpoint Stack\n"
 error_branch_table_overflow:        .string     "[SF] Error: too many Branch Table collisions\n"
 asan_detected_real_overflow:        .string     "[SF] Error: That was a real, non-speculative overflow\n"
 error_corrupted_nesting:            .string     "[SF] Error: nesting_level is corrupted (negative)\n"
@@ -189,6 +191,9 @@ first_mispredicted_branch:              .quad   0
 simulation_id:                          .quad   0
 debug_rollback_depth:                   .string     "[SF] rlbk: 0x%llx %lld %lld %lld\n"
 #endif
+
+.globl in_rlbk
+in_rlbk:                     		    .quad   0
 
 //===------------------------------------------------------------------------===//
 // Checkpoint and rollback
@@ -477,6 +482,8 @@ specfuzz_rlbk:
     // Check that we're not overflowing
     movq checkpoint_sp, %rsp
     ASSERT %rsp jle $checkpoint_stack_bottom specfuzz_exit_state_overflow
+	
+	movq $1, in_rlbk
 
     // Rewind the Store Log:
     // - First, a special case: a segfault might have been triggered right after
@@ -487,16 +494,59 @@ specfuzz_rlbk:
     je .L2
         movq (%rsp), %rbx
         movq 8(%rsp), %rcx
-        cmp %rbx, (%rcx)
-        jne .L1
-        addq $16, %rsp
+		movq 16(%rsp), %rdx
+        
+		cmpq $8, %rdx
+		je .L12.quad_word
+        cmpq $4, %rdx
+		je .L12.double_word
+		cmpq $2, %rdx
+		je .L12.word
+		ASSERT %rdx jne $1 specfuzz_exit_state_corruption
+		jmp .L12.byte
+		
+		.L12.quad_word:
+			cmp %rbx, (%rcx)
+			jne .L1
+			jmp .L13
+		.L12.double_word:
+			cmpl %ebx, (%rcx)
+			jne .L1
+			jmp .L13
+		.L12.word:
+			cmpw %bx, (%rcx)
+			jne .L1
+			jmp .L13
+		.L12.byte:
+			cmpb %bl, (%rcx)
+			jne .L1
+	
+	.L13:
+	addq $24, %rsp
 
     // - now, the actual rewind
     .L1: cmp store_log_bp, %rsp
     je .L2
         popq %rbx  // value
         popq %rcx  // address
-        movq %rbx, (%rcx)
+		popq %rdx  // size
+		cmpq $8, %rdx
+		je .L1.quad_word
+        cmpq $4, %rdx
+		je .L1.double_word
+		cmpq $2, %rdx
+		je .L1.word
+		ASSERT %rdx jne $1 specfuzz_exit_state_corruption
+		jmp .L1.byte
+		
+		.L1.quad_word:
+			movq %rbx, (%rcx)
+		.L1.double_word:
+			movl %ebx, (%rcx)
+		.L1.word:
+			movw %bx, (%rcx)
+		.L1.byte:
+			movb %bl, (%rcx)
         jmp .L1
     .L2:
 
@@ -559,6 +609,8 @@ specfuzz_rlbk:
     // Restore the original value of eflags
     pushq tmp_eflags
     popfq
+	
+	movq $0, in_rlbk
 
     ret  // Finish the simulation
 
@@ -779,19 +831,38 @@ specfuzz_cov_trace_pc_wrapper:
 /// specfuzz_exit_*: Exit with an error message
 ///
 specfuzz_exit_unknown_corruption:
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+	call specfuzz_seed_input
+#endif
     movl $error_not_speculative, %edi
     jmp specfuzz_exit
 
 specfuzz_exit_state_overflow:
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+	call specfuzz_seed_input
+#endif
     movl $error_checkpoint_stack_overflow, %edi
     jmp specfuzz_exit
 
 specfuzz_exit_asan_overflow:
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+	call specfuzz_seed_input
+#endif
     movl $asan_detected_real_overflow, %edi
     jmp specfuzz_exit
 
 specfuzz_exit_corrupted_nesting_level:
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+	call specfuzz_seed_input
+#endif
     movl $error_corrupted_nesting, %edi
+    jmp specfuzz_exit
+	
+specfuzz_exit_state_corruption:
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+	call specfuzz_seed_input
+#endif
+    movl $error_corrupted_checkpoint_stack, %edi
     jmp specfuzz_exit
 
 .type	specfuzz_exit, @function
