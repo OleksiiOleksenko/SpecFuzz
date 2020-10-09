@@ -1,4 +1,12 @@
+
 This directory contains experiment configurations that we used in our Usenix Security'20 paper.
+
+
+To reproduce the result in the paper:
+1. Pull the benchmarks' source code. Links and versions are below. It's important to checkout the correct version of the software: Otherwise the benchmark may not build with the given makefile or you will get different results.
+2. Copy all the files from the corresponding subdirectory of `example/usesec20`. E.g., copy everything from `example/usesec20/brotli` into the directory with Brotli's source coe.
+3. Follow the steps in the corresponding `experiment.md` file for each benchmark.
+
 
 In the evaluation, we used the following versions of the software:
 
@@ -19,9 +27,9 @@ Sources:
 * libHTP: https://github.com/OISF/libhtp
 * libYAML: https://github.com/yaml/libyaml
 
+# On reproducing SLH results
 
-SLH: For convenience, you could use a compiler wrapper `slh-wrapper.sh` that invokes SLH with all correct flags.
-To install it, do the following:
+For convenience, you could use a compiler wrapper `slh-wrapper.sh` that invokes SLH with all correct flags. To install it, execute the following commands from this directory:
 
 ```shell script
 	cp slh-wrapper.sh /usr/bin/clang-slh
