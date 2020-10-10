@@ -164,6 +164,7 @@ static map_entry_t *get_hash_map_entry(uintptr_t pc) {
 
     // hash conflict
     map_entry_t *coverage_map_conflicts = &coverage_map[COVERAGE_MAP_HASHMAP_SIZE];
+    tag = pc; // assert(uint64_t == unsigned long) // anyway it is priorly assumed that tag and pc are of the same size.
     do {
         if (entry->next == 0) { // create a new entry
             uint32_t top = feedback->cmpMapPcTop;

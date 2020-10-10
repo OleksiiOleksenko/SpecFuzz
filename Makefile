@@ -22,7 +22,7 @@ RUNTIME_CONFIGURATION := -DMAX_NESTING_LEVEL=$(MAX_NESTING_LEVEL)\
  -DENABLE_SANITY_CHECKS=$(ENABLE_SANITY_CHECKS)\
  -DENABLE_STATS=$(ENABLE_STATS) -DENABLE_SEQUENTIAL_SIMULATION=$(ENABLE_SEQUENTIAL_SIMULATION)\
  -DDUMP_COVERAGE_AT_EXIT=$(DUMP_COVERAGE_AT_EXIT) -DPRINT_ROLLABACK_STATS=$(PRINT_ROLLABACK_STATS)\
- -DREPORT_CONTROL_FLOW_ERRORS=$(REPORT_CONTROL_FLOW_ERRORS)
+ -DREPORT_CONTROL_FLOW_ERRORS=$(REPORT_CONTROL_FLOW_ERRORS) -DSEED_NON_SPECULATIVE_ERRORS=$(SEED_NON_SPECULATIVE_ERRORS)
 
 # Paths
 LLVM_CONFIG ?= llvm-7.0.1-config
@@ -69,14 +69,14 @@ rebuild_llvm:
 	make -j -C $(LLVM_BUILD)
 
 install_specfuzz:
-	cp -u install/wrapper.sh /usr/bin/clang-sf
-	cp -u install/wrapper.sh /usr/bin/clang-sf++
-	sed -i -e 's:/clang$$:/clang++:g' /usr/bin/clang-sf++
+	sudo cp -u install/wrapper.sh /usr/bin/clang-sf
+	sudo cp -u install/wrapper.sh /usr/bin/clang-sf++
+	sudo sed -i -e 's:/clang$$:/clang++:g' /usr/bin/clang-sf++
 
 install_tools: analyzer hongg
 
 analyzer: postprocessing/analyzer.py
-	cp $< /usr/bin/analyzer
+	sudo cp $< /usr/bin/analyzer
 
 hongg: check_hongg_path patch_hongg rebuild_hongg
 
@@ -96,7 +96,7 @@ patch_hongg: $(HONGG_PATCH)
 
 rebuild_hongg:
 	CC=${CLANG} CFLAGS=-ggdb make -C $(HONGG_SRC) -j4
-	make -C $(HONGG_SRC) install
+	sudo make -C $(HONGG_SRC) install
 
 test:
 	cd tests && ./run.bats

@@ -39,7 +39,8 @@ extern uint64_t stat_signal_misc;
 extern uint64_t stat_simulation_disables;
 extern uint64_t stat_skiped_due_to_disabled;
 
-extern uint64_t in_rlbk;
+extern uint64_t specfuzz_executing_rollback;
+extern uint64_t specfuzz_executing_checkpoint;
 
 extern void specfuzz_rlbk_forced(void);
 

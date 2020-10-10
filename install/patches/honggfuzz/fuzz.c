@@ -585,7 +585,7 @@ static void* fuzz_threadNew(void* arg) {
             map_entry_t entry = coverage_map_conflicts[i];
             if (entry.count == 0)
                 continue;
-            uint64_t address = (entry.tag << COVERAGE_INDEX_WIDTH) + i;
+            uint64_t address = entry.tag;
             LOG_I("[SF], 0x%lx: %d", address, entry.count);
         }
         //hash_map_usage(run.global->feedback.feedbackMap);

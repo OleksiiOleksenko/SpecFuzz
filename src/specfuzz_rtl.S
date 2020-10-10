@@ -192,8 +192,11 @@ simulation_id:                          .quad   0
 debug_rollback_depth:                   .string     "[SF] rlbk: 0x%llx %lld %lld %lld\n"
 #endif
 
-.globl in_rlbk
-in_rlbk:                     		    .quad   0
+.globl specfuzz_executing_rollback
+specfuzz_executing_rollback:            .quad   0
+
+.globl specfuzz_executing_checkpoint
+specfuzz_executing_checkpoint:          .quad   0
 
 //===------------------------------------------------------------------------===//
 // Checkpoint and rollback
@@ -211,6 +214,7 @@ in_rlbk:                     		    .quad   0
 .globl	specfuzz_chkp
 .type	specfuzz_chkp, @function
 specfuzz_chkp:
+    movq $1, specfuzz_executing_checkpoint
     push %r15
     movq %r15, tmp_gpr1
 
@@ -219,13 +223,15 @@ specfuzz_chkp:
     xorq %r15, %r15
     movq (%rsp), %r15
     movq %r15, tmp_eflags
-
+    
     // do not start a simulation if it is globally disabled
     cmpq $0, disable_speculation
     jg specfuzz_chkp.disabled_simulation
 
     // check if it's time to rollback
+    movq $0, specfuzz_executing_checkpoint
     call specfuzz_rlbk_if_done
+    movq $1, specfuzz_executing_checkpoint
     ASSERT nesting_level jl $0 specfuzz_exit_corrupted_nesting_level
 
     // do not start a new simulation if we've reached the max nesting depth
@@ -358,13 +364,16 @@ specfuzz_chkp:
         // the next instruction, we'll also skip  the restoration to the application stack.
         // Thus, we have to do it here
         movq current_rsp, %rsp
-
+        
+        movq $0, specfuzz_executing_checkpoint
+        
         // Return
         jmpq *simulation_start_address
 
 specfuzz_chkp.no_simulation:
     popfq
     popq %r15
+    movq $0, specfuzz_executing_checkpoint
     ret
 
 specfuzz_chkp.disabled_simulation:
@@ -375,6 +384,7 @@ specfuzz_chkp.disabled_simulation:
 
     popfq
     popq %r15
+    movq $0, specfuzz_executing_checkpoint
     ret
 
 
@@ -483,13 +493,16 @@ specfuzz_rlbk:
     movq checkpoint_sp, %rsp
     ASSERT %rsp jle $checkpoint_stack_bottom specfuzz_exit_state_overflow
 	
-	movq $1, in_rlbk
+	movq $1, specfuzz_executing_rollback
 
     // Rewind the Store Log:
     // - First, a special case: a segfault might have been triggered right after
     // the checkpoint, if the page is labeled as read-only
     // Thus, attempting to restore the value will cause another segfault
     // In this case, ignore the broken entry: checkpoint_sp++
+    //      Store Log consists of tuples of 4 quadwords <(padding, write_width, address, value)>
+    //      rollback depends on "write_width" value (loaded to %rdx)
+    .L14:
     cmp store_log_bp, %rsp
     je .L2
         movq (%rsp), %rbx
@@ -508,7 +521,8 @@ specfuzz_rlbk:
 		.L12.quad_word:
 			cmp %rbx, (%rcx)
 			jne .L1
-			jmp .L13
+            addq $32, %rsp
+			jmp .L14
 		.L12.double_word:
 			cmpl %ebx, (%rcx)
 			jne .L1
@@ -522,7 +536,7 @@ specfuzz_rlbk:
 			jne .L1
 	
 	.L13:
-	addq $24, %rsp
+	addq $32, %rsp
 
     // - now, the actual rewind
     .L1: cmp store_log_bp, %rsp
@@ -547,6 +561,7 @@ specfuzz_rlbk:
 			movw %bx, (%rcx)
 		.L1.byte:
 			movb %bl, (%rcx)
+        addq $8, %rsp
         jmp .L1
     .L2:
 
@@ -610,7 +625,7 @@ specfuzz_rlbk:
     pushq tmp_eflags
     popfq
 	
-	movq $0, in_rlbk
+	movq $0, specfuzz_executing_rollback
 
     ret  // Finish the simulation
 

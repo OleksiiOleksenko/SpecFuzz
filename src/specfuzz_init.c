@@ -80,8 +80,16 @@ void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
         abort();
     }
 	
-	if (in_rlbk) {
+	if (specfuzz_executing_rollback) {
 		fprintf(stderr, "[SF] Error: a signal caught within SpecFuzz's rollback\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
+        abort();
+    }
+    
+	if (specfuzz_executing_checkpoint) {
+		fprintf(stderr, "[SF] Error: a signal caught within SpecFuzz's checkpoint\n");
 #if SEED_NON_SPECULATIVE_ERRORS == 1
 		specfuzz_seed_input();
 #endif
