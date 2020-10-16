@@ -1,3 +1,11 @@
+For this benchmark, it's better to put the Makefile somewhere outside the OpenSSL source code directory. You would need to change the `LIB_DIR` variable to point to this source code directory. 
+
+Also, don't forget to replace the original OpenSSL fuzzing driver (`fuzz/driver.c`) with our version.
+
+All the next steps are the same as for the other benchmarks.
+
+---
+
 When building for the first time, collect a function list:
 
 ```shell script
