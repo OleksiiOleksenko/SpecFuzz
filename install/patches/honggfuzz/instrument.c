@@ -99,6 +99,12 @@ void specfuzz_cov_vuln(uintptr_t pc) {
     }
 }
 
+// Adds current input to corpus
+void specfuzz_seed_input() {
+	// TODO: less lazy implementation
+    ATOMIC_PRE_INC_RELAXED(feedback->pidFeedbackPc[my_thread_no]);
+}
+
 __attribute__((preserve_most))
 void specfuzz_cov_trace_pc(uintptr_t pc) {
     // quick path - check the cache
