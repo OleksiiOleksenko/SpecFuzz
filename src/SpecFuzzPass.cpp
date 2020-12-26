@@ -1618,6 +1618,7 @@ auto X86SpecFuzzPass::isAcquireOrRelease(unsigned Opcode) -> bool {
 auto X86SpecFuzzPass::isExplicitlySerializing(unsigned Opcode) -> bool {
     switch (Opcode) {
         case X86::LFENCE:
+        case X86::MFENCE:
         case X86::CPUID:
         case X86::TRAP:
             return true;
