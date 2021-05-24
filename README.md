@@ -105,7 +105,7 @@ Paper:
 @InProceedings{Oleksenko:2020,
   author={Oleksenko, Oleksii and Trach, Bohdan and Silberstein, Mark and Fetzer, Christof},
   title={{SpecFuzz: Bringing Spectre-type vulnerabilities to the surface}},
-  booktitle={29th $\{$USENIX$\}$ Security Symposium ($\{$USENIX$\}$ Security)},
+  booktitle={29th USENIX Security Symposium (USENIX Security)},
   year={2020}
 }
 ```
