@@ -594,6 +594,8 @@ auto X86SpecFuzzPass::visitReturn(MachineInstr &MI, MachineBasicBlock &Parent) -
 ///                                |    MOVQ %r15, tmp_gpr1  // reserve the value of r15
 ///                                |    LEAQ 8(%rsp), %r15      // store the address
 ///                                |    MOVQ checkpoint_sp, %rsp
+///                                |    PUSH $0
+///                                |    PUSH $WRITING_WIDTH
 ///                                |    PUSH %r15
 ///                                |    PUSH (%r15)             // store the original value
 ///                                |    MOVQ %rsp, checkpoint_sp     // restore stack
@@ -633,17 +635,154 @@ auto X86SpecFuzzPass::visitWrite(MachineInstr &MI, MachineBasicBlock &Parent) ->
         .add(MI.getOperand(MemRefBegin + X86::AddrSegmentReg));
 
     restoreRegister(Parent, MI, Loc, X86::RSP, "checkpoint_sp");
-
+	
+	MachineMemOperand *MMO = *MI.memoperands_begin();
+    uint64_t width = MMO->getSize();
+	
+	LLVM_DEBUG(dbgs() << "Store's width: " << width << "\n");
+	
+    // push arbitrary value for 16 byte alignment in checkpoint stack
+    BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+		.addImm(0);
+    
+	BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+		.addImm((width > 8)? 8 : width);
+	
     // PUSH %TmpReg
     BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64r), TmpReg);
+	
+	
+	switch (width) {
+		case 1:
+			preserveRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+			
+			// Immediate is arbitrary
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+				.addImm(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV8rm), X86::R14B)
+				.addReg(TmpReg).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV8mr))
+				.addReg(X86::RSP).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0)
+				.addReg(X86::R14B);
+				
+			restoreRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+			
+			break;
+		
+		case 2:
+			preserveRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+			
+			// Immediate is arbitrary
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+				.addImm(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV16rm), X86::R14W)
+				.addReg(TmpReg).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV16mr))
+				.addReg(X86::RSP).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0)
+				.addReg(X86::R14W);
+				
+			restoreRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+				
+			break;
+			
+		case 4:
+			preserveRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+			
+			// Immediate is arbitrary
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+				.addImm(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV32rm), X86::R14D)
+				.addReg(TmpReg).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::MOV32mr))
+				.addReg(X86::RSP).addImm(1)
+				.addReg(0).addImm(0)
+				.addReg(0)
+				.addReg(X86::R14D);
+				
+			restoreRegister(Parent, MI, Loc, X86::R14, "tmp_gpr2");
+				
+			break;
+				
+		case 8:
+		case 16:
+		case 32:
+			// PUSH (%TmpReg)
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64rmm), TmpReg)
+				.addImm(1).addReg(0)
+				.addImm(0).addReg(0);
+			
+			if (width == 8) break;
+			
+            // else that's SSE or AVX instruction. repeat logging of quadwords.
+            
+			BuildMI(Parent, MI, Loc, TII->get(X86::LEA64r), TmpReg)
+            .addReg(TmpReg).addImm(1)
+            .addReg(0).addImm(8)
+            .addReg(0);
+            
+            // push arbitrary value for 16 byte alignment in checkpoint stack
+            BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+                .addImm(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+				.addImm(8);
 
-    // PUSH (%TmpReg)
-    BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64rmm), TmpReg)
-        .addImm(1).addReg(0)
-        .addImm(0).addReg(0);
+			// PUSH %TmpReg
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64r), TmpReg);
+
+			// PUSH (%TmpReg)
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64rmm), TmpReg)
+				.addImm(1).addReg(0)
+				.addImm(0).addReg(0);
+		
+			if (width == 16) { LLVM_DEBUG(dbgs() << "   The store is 128-bit wide\n"); break; }
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::LEA64r), TmpReg)
+            .addReg(TmpReg).addImm(1)
+            .addReg(0).addImm(8)
+            .addReg(0);
+            
+            // push arbitrary value for 16 byte alignment in checkpoint stack
+            BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+                .addImm(0);
+			
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+				.addImm(8);
+
+			// PUSH %TmpReg
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64r), TmpReg);
+
+			// PUSH (%TmpReg)
+			BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64rmm), TmpReg)
+				.addImm(1).addReg(0)
+				.addImm(0).addReg(0);
+				
+			LLVM_DEBUG(dbgs() << "   The store is 256-bit wide\n"); 
+			break;
+		
+		default:
+			llvm_unreachable("Unknown width");
+			break;
+	}
 
     // SSE stores are 128-bit wide
-    if (Desc.TSFlags >> X86II::SSEDomainShift & 3) {  // NOLINT
+    /*if (Desc.TSFlags >> X86II::SSEDomainShift & 3) {  // NOLINT
         LLVM_DEBUG(dbgs() << "   The store is 128-bit wide\n");
 
         // LEAQ 8(%TmpReg), %TmpReg
@@ -651,6 +790,9 @@ auto X86SpecFuzzPass::visitWrite(MachineInstr &MI, MachineBasicBlock &Parent) ->
             .addReg(TmpReg).addImm(1)
             .addReg(0).addImm(8)
             .addReg(0);
+			
+		BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+			.addImm(8);
 
         // PUSH %TmpReg
         BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64r), TmpReg);
@@ -659,7 +801,7 @@ auto X86SpecFuzzPass::visitWrite(MachineInstr &MI, MachineBasicBlock &Parent) ->
         BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64rmm), TmpReg)
             .addImm(1).addReg(0)
             .addImm(0).addReg(0);
-    }
+    }*/
 
     preserveRegister(Parent, MI, Loc, X86::RSP, "checkpoint_sp");
     restoreRegister(Parent, MI, Loc, TmpReg, "tmp_gpr1");
@@ -684,6 +826,13 @@ auto X86SpecFuzzPass::visitPush(MachineInstr &MI, MachineBasicBlock &Parent) -> 
         .addReg(0);
 
     restoreRegister(Parent, MI, Loc, X86::RSP, "checkpoint_sp");
+    
+    // push arbitrary value for 16 byte alignment in checkpoint stack
+    BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+        .addImm(0);
+    
+	BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64i8))
+		.addImm(8);
 
     // PUSH %TmpReg
     BuildMI(Parent, MI, Loc, TII->get(X86::PUSH64r), TmpReg);
@@ -1042,6 +1191,7 @@ auto X86SpecFuzzPass::getCallTargetType(MachineInstr &MI) -> X86SpecFuzzPass::Ca
         "__asan_set_shadow_f8",
 
         "__asan_frame_malloc_0",
+		"__asan_stack_malloc_0",
         "__asan_stack_malloc_1",
         "__asan_stack_malloc_2",
         "__asan_stack_malloc_3",

@@ -39,7 +39,11 @@ extern uint64_t stat_signal_misc;
 extern uint64_t stat_simulation_disables;
 extern uint64_t stat_skiped_due_to_disabled;
 
+extern uint64_t specfuzz_executing_rollback;
+extern uint64_t specfuzz_executing_checkpoint;
+
 extern void specfuzz_rlbk_forced(void);
+
 
 // Coverage
 void specfuzz_cov_init();
@@ -50,5 +54,6 @@ void specfuzz_cov_vuln(uintptr_t pc);
 __attribute__((weak)) __attribute__((preserve_most))
 struct map_entry_t *get_hash_map_entry(uintptr_t pc);
 
+void specfuzz_seed_input();
 
 #endif //SPECFUZZ_RTL_H

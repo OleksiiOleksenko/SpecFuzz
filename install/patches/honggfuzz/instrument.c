@@ -99,6 +99,12 @@ void specfuzz_cov_vuln(uintptr_t pc) {
     }
 }
 
+// Adds current input to corpus
+void specfuzz_seed_input() {
+	// TODO: less lazy implementation
+    ATOMIC_PRE_INC_RELAXED(feedback->pidFeedbackPc[my_thread_no]);
+}
+
 __attribute__((preserve_most))
 void specfuzz_cov_trace_pc(uintptr_t pc) {
     // quick path - check the cache
@@ -158,6 +164,7 @@ static map_entry_t *get_hash_map_entry(uintptr_t pc) {
 
     // hash conflict
     map_entry_t *coverage_map_conflicts = &coverage_map[COVERAGE_MAP_HASHMAP_SIZE];
+    tag = pc; // assert(uint64_t == unsigned long) // anyway it is priorly assumed that tag and pc are of the same size.
     do {
         if (entry->next == 0) { // create a new entry
             uint32_t top = feedback->cmpMapPcTop;

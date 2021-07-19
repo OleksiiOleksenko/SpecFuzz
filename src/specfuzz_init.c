@@ -48,26 +48,56 @@ void specfuzz_handler(int signo, siginfo_t *siginfo, void *ucontext) {
 #if ENABLE_SANITY_CHECKS == 1
     if (inside_handler != 0) {
         fprintf(stderr, "\n[SF] Error: Fault inside the signal handler\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
         abort();
     }
     inside_handler = 1;
 
     if (nesting_level <= 0x0) {
         fprintf(stderr, "[SF] Error: Signal handler called outside speculation\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
         abort();
     }
 
     if (checkpoint_sp > &checkpoint_stack || checkpoint_sp < &checkpoint_stack_bottom) {
         fprintf(stderr, "[SF] Error: checkpoint_sp is corrupted\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
         abort();
     }
 
     if ((uint64_t *) uc_gregs[REG_RSP] <= &specfuzz_rtl_frame
         && (uint64_t *) uc_gregs[REG_RSP] >= &specfuzz_rtl_frame_bottom) {
         fprintf(stderr, "[SF] Error: a signal caught within the SpecFuzz runtime\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
+        abort();
+    }
+	
+	if (specfuzz_executing_rollback) {
+		fprintf(stderr, "[SF] Error: a signal caught within SpecFuzz's rollback\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
+        abort();
+    }
+    
+	if (specfuzz_executing_checkpoint) {
+		fprintf(stderr, "[SF] Error: a signal caught within SpecFuzz's checkpoint\n");
+#if SEED_NON_SPECULATIVE_ERRORS == 1
+		specfuzz_seed_input();
+#endif
         abort();
     }
 #endif
+
+
 
     if (siginfo->si_signo == SIGFPE) {
         STAT_INCREMENT(stat_signal_misc);
