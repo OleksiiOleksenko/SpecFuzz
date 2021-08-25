@@ -15,6 +15,9 @@ $ /llvm/installation/directory/clang -v
 clang version 7.0.1 (tags/RELEASE_701/final)
 ...
 ```
+
+If you have trouble compiling LLVM 7.0.1 with the newest glibc, try applying this patch: https://github.com/llvm/llvm-project/commit/947f9692440836dcb8d88b74b69dd379d85974ce
+
 * HonggFuzz, built from sources:
 ```bash
 $ apt-get install -y libbfd-dev libunwind8-dev binutils-dev libblocksruntime-dev
